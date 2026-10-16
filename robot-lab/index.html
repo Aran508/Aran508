@@ -55,6 +55,7 @@ code { font-family: var(--f-mono); font-size: 0.88em; background: var(--panel-2)
 .logo { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
 .logo h1 { margin: 0; font: 700 24px/1 var(--f-display); letter-spacing: 0.02em; text-transform: uppercase; }
 .logo span { color: var(--muted); font-size: 12.5px; }
+.weldlink { font-size: 12.5px; font-weight: 600; color: var(--accent-ink); background: var(--accent); padding: 4px 10px; border-radius: 4px; text-decoration: none; }
 .brands { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
 .brand {
   display: grid; grid-template-columns: 10px auto; grid-template-rows: auto auto; column-gap: 8px; align-items: center; text-align: left;
@@ -224,7 +225,7 @@ code { font-family: var(--f-mono); font-size: 0.88em; background: var(--panel-2)
 
 <div class="app">
   <header class="top">
-    <div class="logo"><h1>Robot Academy</h1><span>Industrial robot programming, A to Z</span></div>
+    <div class="logo"><h1>Robot Academy</h1><span>Industrial robot programming, A to Z</span><a class="weldlink" href="weld.html">Weld Cell Trainer: pendant, PLC, welding →</a></div>
     <div class="brands" id="brands" role="group" aria-label="Robot maker"></div>
   </header>
 

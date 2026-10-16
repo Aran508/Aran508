@@ -144,8 +144,15 @@ class Cell3D {
     // wrist (J5)
     L[5].add(this.at(this.cylY(64, 150, trim), 0, 0, 0));
     L[5].add(this.at(this.cylZ(52, ARM.d6 - 10, body), 0, 0, (ARM.d6 - 10) / 2));
-    // flange + gripper (J6)
+    // flange + end effector (J6)
     L[6].add(this.at(this.cylZ(46, 16, chrome), 0, 0, -8));
+    this.buildEndEffector(L, trim, chrome);
+    this.links = L;
+    this.robot = root;
+    this.scene.add(root);
+  }
+
+  buildEndEffector(L, trim, chrome) {
     const grip = new THREE.Group();
     grip.add(this.at(this.boxMesh(110, 70, 70, trim), 0, 0, 35));
     grip.add(this.at(this.cylZ(18, 14, chrome), 0, 0, 77));
@@ -153,15 +160,11 @@ class Cell3D {
     this.fingerA = this.at(this.boxMesh(16, 44, 95, fm), 40, 0, 110);
     this.fingerB = this.at(this.boxMesh(16, 44, 95, fm), -40, 0, 110);
     grip.add(this.fingerA, this.fingerB);
-    // TCP marker
     this.tcpDot = new THREE.Mesh(new THREE.SphereGeometry(0.008, 12, 8), new THREE.MeshBasicMaterial({ color: 0x0b7a75 }));
     this.tcpDot.position.set(0, 0, 160 * S);
     grip.add(this.tcpDot);
     L[6].add(grip);
     this.gripper = grip;
-    this.links = L;
-    this.robot = root;
-    this.scene.add(root);
   }
 
   setGripper(gap) { // gap in mm between finger inner faces

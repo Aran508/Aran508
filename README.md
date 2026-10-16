@@ -4,6 +4,7 @@ Two browser simulators, each a static page with no build step.
 
 | Project | What it is |
 |---------|------------|
+| [`robot-lab/weld.html`](robot-lab/weld.html) | **Weld Cell Trainer**: FANUC-style arc welding cell with a working teach pendant, PLC, and fault scenarios |
 | [`robot-lab/`](robot-lab/) | **Robot Academy**: learn industrial robot programming in ABB RAPID, FANUC TP, KUKA KRL, Yaskawa INFORM or URScript, and run your code on a simulated 6-axis arm |
 | [`bridge-lab/`](bridge-lab/) | **Bridge Lab**: design a truss bridge and load-test it with an XPBD solver |
 
@@ -28,6 +29,38 @@ Open `robot-lab/index.html` in a browser. It loads three.js from cdnjs. Everythi
   - path checks for reach, joint limits and wrist singularities, reported with the line number
   - a work cell: a conveyor feeding boxes, a part sensor, a gripper that really grasps, a pallet user frame, a reject bin, and collision checks against the tables
   - digital I/O you can force, a speed override, an E-stop, a jog pendant (joint, base or tool), and Teach to capture the current pose as code
+
+## Weld Cell Trainer (`robot-lab/weld.html`)
+
+A FANUC ArcTool-style welding cell that welds the cap end cover onto a hydraulic cylinder barrel while a servo positioner turns the part. It has three modes.
+
+**Learn**: 22 chapters from zero to specialist. Each has an animation, a 3D demo in the cell, and a knowledge check.
+- *The machine:* cell tour (click any component), servo motor, reducer, encoder and brake, the controller cabinet, and every teach pendant key.
+- *Moving the robot:* T1/T2/AUTO, the 3-position enabling switch, E-stops, JOINT/WORLD/TOOL/USER, the jogging procedure, and the TCP.
+- *Signals:* DI/DO/UI/UO/RI/RO/AI/GO, what a PLC is (scan cycle, ladder logic), and the robot–PLC handshake.
+- *Programs:* every TP symbol (`J L C P[] PR[] R[] : ; () % mm/sec FINE CNT ! LBL JMP`), motion, and logic.
+- *Welding:* GMAW physics, torch angles and lead on a rotating part, the cylinder job, and Arc Start/End with dry runs.
+- *Specialist:* troubleshooting method, alarm reference, weld defects, and maintenance.
+
+**Practice**: an iPendant replica that works:
+- *Keys:* PREV, F1–F5, NEXT, SHIFT, MENU, SELECT, EDIT, DATA, FCTN, DISP, STEP, HOLD, FWD, BWD, COORD, ±%, GROUP, RESET, ITEM, ENTER, digits, DIAG/HELP, POSN, I/O, STATUS, WELD ENBL, WIRE±, OTF, all 12 jog keys, the TP ON/OFF switch, E-stop and enabling switch.
+- *Screens:* EDIT with field editing and [CHOICE], POINT/ARCSTRT/WELD_PT/ARCEND/TOUCHUP, [INST] and [EDCMD], SELECT/CREATE/DELETE, POSN (JNT/USER/WORLD), I/O with SIMULATE and force, DATA registers and weld schedules, ALARM with help, STATUS and SETUP frames.
+- *The cell:* a controller with a mode key and E-stop, an operator panel driving a live ladder-logic PLC, a door and light curtain, a real arc process (preflow, strike, arc detect, crater fill), and weld-quality sampling with an inspection report that maps defects around the seam.
+- *Missions:* 10 missions, checked live, from "wake the robot" to "weld in AUTO and pass inspection".
+
+**Troubleshoot**: 8 injected faults:
+- a bad door switch
+- a failed clamp sensor
+- a loose earth clamp (ARC-013)
+- empty gas (porosity)
+- a bent torch (TCP shift)
+- a bad touch-up (SRVO-050)
+- a low encoder battery (SRVO-065)
+- a light-curtain trip (SRVO-007)
+
+You diagnose each one with the pendant screens, I/O, the PLC ladder and the weld report, then choose the root cause and apply the fix.
+
+Alarm codes follow FANUC naming. Texts vary by controller version, so use your controller's manuals for real work.
 
 ## Honest simplifications
 

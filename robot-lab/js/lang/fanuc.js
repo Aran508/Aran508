@@ -91,6 +91,9 @@
     const h = text.match(/P\[(\d+)(?:\s*:\s*"?([^"\]]*)"?)?\]\s*\{/i);
     if (!h) throw new ParseError("Position block must start like P[1:\"HOME\"]{", line);
     if (!cur) throw new ParseError("Positions must come after /PROG.", line);
+    const gp2At = text.search(/GP2\s*:/i);
+    const gp2 = gp2At >= 0 ? text.slice(gp2At) : "";
+    if (gp2At >= 0) text = text.slice(0, gp2At);
     const get = (k, unit) => { const m = text.match(new RegExp(`\\b${k}\\s*=\\s*(-?[\\d.]+)\\s*${unit}`, "i")); return m ? +m[1] : null; };
     const uf = (text.match(/UF\s*:\s*(\d+)/i) || [])[1], ut = (text.match(/UT\s*:\s*(\d+)/i) || [])[1];
     let v;
@@ -105,6 +108,8 @@
       v.frame = uf != null ? +uf : 0;
       v.tool = ut != null ? +ut : undefined;
     }
+    const e1 = gp2.match(/J1\s*=\s*(-?[\d.]+)\s*deg/i);
+    if (e1) v.e1 = +e1[1];
     prog.globals[`${cur.name}:P[${h[1]}]`] = v;
   }
 
@@ -113,10 +118,12 @@
     let speed;
     if (!sp) throw new ParseError("Motion needs a speed, e.g. 500mm/sec or 50%.", line);
     let val;
-    if (sp.t === "num") val = { k: "num", v: sp.v };
+    if (sp.t === "id" && sp.u === "WELD_SPEED") { speed = { mms: { k: "call", name: "weldspeed", args: [] } }; val = null; }
+    else if (sp.t === "num") val = { k: "num", v: sp.v };
     else if (sp.u === "R" && ts.is("[")) { ts.next(); const n = ts.next().v; ts.expect("]"); used.R.add(n); val = { k: "var", name: `R[${n}]` }; }
     else throw new ParseError(`Expected a speed but found "${sp.v}".`, line);
-    if (ts.accept("%")) { if (kind !== "J") throw new ParseError("Percent speed is only for joint (J) motion. Use mm/sec for L and C.", line); speed = { pct: val }; }
+    if (!val) { /* WELD_SPEED: travel speed from the active weld schedule */ }
+    else if (ts.accept("%")) { if (kind !== "J") throw new ParseError("Percent speed is only for joint (J) motion. Use mm/sec for L and C.", line); speed = { pct: val }; }
     else if (ts.is("MM")) { ts.next(); ts.expect("/"); ts.expect("SEC", "sec"); speed = { mms: val }; }
     else if (ts.is("CM")) { ts.next(); ts.expect("/"); ts.expect("MIN", "min"); speed = { mms: { k: "bin", op: "/", a: { k: "bin", op: "*", a: val, b: { k: "num", v: 10 } }, b: { k: "num", v: 60 } } }; }
     else throw new ParseError(`Speed unit missing: use ${kind === "J" ? "%" : "mm/sec"}.`, line);
@@ -144,6 +151,12 @@
     const P = makeExpr(cur.name, used);
     const expr = (toks) => { const ts = new Toks(toks, line); const e = P(ts); ts.done(); return e; };
     if (s.startsWith("!") || s.startsWith("//")) return push({ op: "nop" });
+    let am;
+    if ((am = s.match(/^Arc\s+Start\s*\[\s*(\d+)\s*\]$/i))) return push({ op: "ext", kind: "arcstart", sched: +am[1] });
+    if ((am = s.match(/^Arc\s+End\s*\[\s*(\d+)\s*\]$/i))) return push({ op: "ext", kind: "arcend", sched: +am[1] });
+    if ((am = s.match(/^Weave\s+(Sine|Circle|Figure\s*8)\s*\[\s*(\d+)\s*\]$/i))) return push({ op: "ext", kind: "weave", pattern: am[1], sched: +am[2] });
+    if (/^Weave\s+End$/i.test(s)) return push({ op: "ext", kind: "weaveend" });
+    if (/^(Arc|Weave)\b/i.test(s)) throw new ParseError("Arc instructions look like: Arc Start[1] ;  Arc End[1] ;  Weave Sine[1] ;  Weave End ;", line);
     let m;
     if ((m = s.match(/^MESSAGE\s*\[(.*)\]$/i))) return push({ op: "msg", expr: { k: "str", v: m[1] } });
     s = s.replace(/\[(\s*\d+)\s*:[^\]]*\]/g, "[$1]"); // drop register comments R[1:count]
@@ -218,7 +231,10 @@
       const lhs = expr(toks.slice(0, eq));
       const rhsToks = toks.slice(eq + 1);
       if (lhs.k === "call" && lhs.name === "do") {
-        if (rhsToks[0] && rhsToks[0].u === "PULSE") return push({ op: "pulse", port: lhs.args[0] });
+        if (rhsToks[0] && rhsToks[0].u === "PULSE") {
+          const d = rhsToks.find((t) => t.t === "num");
+          return push({ op: "pulse", port: lhs.args[0], sec: d ? { k: "num", v: d.v } : null });
+        }
         return push({ op: "setdo", port: lhs.args[0], value: expr(rhsToks) });
       }
       if (lhs.k === "var") return push({ op: "assign", target: { name: lhs.name, path: [] }, expr: expr(rhsToks) });

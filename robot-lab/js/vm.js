@@ -16,7 +16,7 @@ const num = (v, line, what) => {
   return v;
 };
 const truthy = (v) => (typeof v === "number" ? v !== 0 : !!v);
-const clonePose = (P) => ({ type: "pose", p: P.p.slice(), R: P.R.slice(), frame: P.frame, tool: P.tool });
+const clonePose = (P) => ({ type: "pose", p: P.p.slice(), R: P.R.slice(), frame: P.frame, tool: P.tool, e1: P.e1 });
 
 // KUKA counts A2/A3 from its own zero (arm upright = A2 -90, A3 +90)
 const KUKA_AXIS = { toInternal: (a) => [a[0], a[1] + 90, a[2] - 90, a[3], a[4], a[5]], fromInternal: (q) => [q[0], q[1] - 90, q[2] + 90, q[3], q[4], q[5]] };
@@ -182,6 +182,11 @@ function planMotion(spec, ctl) {
     throw new RobotError(`${what}${where ? " " + where : ""}. ${r.detail}`, line);
   };
   let qs = null, endQ, Tbase, lengthMM = 0;
+  // optional external axis (positioner) moving with the robot, in degrees
+  const e10 = ctl.world.e1 || 0;
+  const e11 = spec.target && spec.target.e1 != null ? spec.target.e1 : e10;
+  const coordMM = Math.abs(e11 - e10) * DEG * (ctl.world.coordRadius || 0);
+  const cap = ctl.world.speedCap || Infinity; // T1 limits TCP speed to 250 mm/s
 
   if (kind === "J") {
     if (isJoints(spec.target)) {
@@ -197,6 +202,7 @@ function planMotion(spec, ctl) {
     Tbase = Math.max(0.15, Math.max(...endQ.map((v, i) => Math.abs(v - q0[i]) / (ARM.vmax[i] * pct))));
     const tcp1 = Pose.mul(fkFlange(endQ), tool);
     lengthMM = Vec.len(Vec.sub(tcp1.p, tcp0.p));
+    Tbase = Math.max(Tbase, Math.abs(e11 - e10) / (90 * pct), lengthMM / cap);
   } else {
     // Cartesian path: sample it, solve IK at each step, and reject paths that leave the workspace
     let pointAt, R1;
@@ -226,9 +232,9 @@ function planMotion(spec, ctl) {
       qs.push(r.q); ref = r.q;
     }
     endQ = qs[n];
-    const v = Math.max(1, spec.mms || 250);
+    const v = Math.min(cap, Math.max(1, spec.mms || 250));
     const jointT = Math.max(...qs.slice(1).map((q, i) => Math.max(...q.map((x, k) => Math.abs(x - qs[i][k]) / ARM.vmax[k])))) * n;
-    Tbase = Math.max(0.1, lengthMM / v, rotDeg / 120, jointT);
+    Tbase = Math.max(0.1, (lengthMM + coordMM) / v, rotDeg / 120, jointT, Math.abs(e11 - e10) / 90);
   }
 
   // Blending: finish early by the zone radius when the path is long enough, without stopping.
@@ -241,8 +247,9 @@ function planMotion(spec, ctl) {
     return qs[i].map((v, k) => v + (qs[i + 1][k] - v) * t);
   };
   return {
-    kind, line, dur: profile.total, profile, endFrac, blended: endFrac < 1,
+    kind, line, dur: profile.total, profile, endFrac, blended: endFrac < 1, hasE1: e11 !== e10,
     sample(t) { return qAt(profile.at(t) * endFrac); },
+    e1At(t) { return e10 + (e11 - e10) * profile.at(t) * endFrac; },
   };
 }
 
@@ -263,7 +270,7 @@ class Controller {
     if (this.prog) for (const k in this.prog.globals) this.vars[k] = this.copy(this.prog.globals[k]);
     this.stack = [];
     this.frame = this.prog ? { proc: this.prog.main, pc: 0 } : null;
-    this.motion = null; this.mt = 0; this.waitUntil = null; this.waitDI = null;
+    this.motion = null; this.mt = 0; this.waitUntil = null; this.waitDI = null; this.extWait = null;
     this.lastBlended = false; this.defaults = { pct: 50, mms: 250, blend: 0 };
     this.shift = null; this.cycle = 0; this.line = this.prog ? this.prog.procs[this.prog.main].line : 0;
     this.state = this.prog ? "idle" : "idle"; this.stepMode = false; this.error = null;
@@ -385,6 +392,7 @@ class Controller {
       case "dist": return Vec.len(Vec.sub(P(a[0], 0).p, P(a[1], 1).p));
       case "str": return String(typeof a[0] === "number" ? +a[0].toFixed(3) : a[0]);
     }
+    if (this.world.fn) { const r = this.world.fn(name, a, line); if (r !== undefined) return r; }
     throw new RobotError(`Unknown function ${name}().`, line);
   }
   assign(t, value, line) {
@@ -406,6 +414,16 @@ class Controller {
   restart() { this.reset(); }
   step() { if (!this.prog) return; if (this.state === "done" || this.state === "error") this.restart(); this.state = "running"; this.stepMode = true; this.stepTaken = false; }
   pause() { if (this.running) this.state = "paused"; }
+  // start (or continue) execution at the first instruction of the main routine on or after a source line
+  startAt(line, stepMode) {
+    if (!this.prog) return;
+    const code = this.prog.procs[this.prog.main].code;
+    let pc = code.findIndex((ins) => ins.line >= line);
+    if (pc < 0) pc = code.length;
+    this.stack = []; this.frame = { proc: this.prog.main, pc };
+    this.motion = null; this.waitUntil = null; this.waitDI = null; this.extWait = null; this.error = null;
+    this.state = "running"; this.stepMode = !!stepMode;
+  }
 
   tick(dt) {
     if (this.state !== "running" && this.state !== "waiting") return;
@@ -415,7 +433,7 @@ class Controller {
         this.mt += dt * this.world.speedScale();
         const m = this.motion;
         const q = m.sample(Math.min(this.mt, m.dur));
-        this.world.setJoints(q, m.kind, m.line);
+        this.world.setJoints(q, m.kind, m.line, m.hasE1 ? m.e1At(Math.min(this.mt, m.dur)) : undefined);
         if (this.mt >= m.dur) {
           this.lastBlended = m.blended; this.motion = null; this.mt = 0;
           if (this.stepMode) { this.state = "paused"; return; }
@@ -425,6 +443,11 @@ class Controller {
         this.waitUntil -= dt * this.world.speedScale();
         if (this.waitUntil > 0) return;
         this.waitUntil = null; this.state = "running";
+        if (this.stepMode) { this.state = "paused"; return; }
+      }
+      if (this.extWait) { // e.g. arc start waiting for the arc-detect signal
+        if (!this.extWait()) { this.state = "waiting"; return; }
+        this.extWait = null; this.state = "running";
         if (this.stepMode) { this.state = "paused"; return; }
       }
       if (this.waitDI) {
@@ -513,7 +536,8 @@ class Controller {
         return true;
       }
       case "setdo": w.setDO(num(this.ev(s.port, L), L), truthy(this.ev(s.value, L)), L); return false;
-      case "pulse": if (w.pulseDO) w.pulseDO(num(this.ev(s.port, L), L), L); else w.setDO(num(this.ev(s.port, L), L), true, L); return false;
+      case "ext": return w.ext ? w.ext(s, this) === true : false;
+      case "pulse": if (w.pulseDO) w.pulseDO(num(this.ev(s.port, L), L), L, s.sec ? num(this.ev(s.sec, L), L) : 0.5); else w.setDO(num(this.ev(s.port, L), L), true, L); return false;
       case "wait": {
         const t = num(this.ev(s.sec, L), L, "Wait time");
         this.waitUntil = t; this.state = "waiting"; return true;
