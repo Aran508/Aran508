@@ -1,0 +1,914 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- BODY-START -->
+<title>Bridge Lab</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=Barlow+Condensed:wght@600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a drafting sheet. The load-test canvas fills the left; a calc-sheet panel sits on the right and stacks under it on phones. */
+:root {
+  --bg: #e7ebe3;
+  --sheet: #f4f6f0;
+  --ink: #1b292d;
+  --muted: #5a6a6a;
+  --line: #c6cfc2;
+  --grid: #dde3d8;
+  --grid-major: #c8d1c3;
+  --terrain: #dbe1d5;
+  --water: #a7c7d1;
+  --accent: #e6a00e;
+  --accent-ink: #1b292d;
+  --tension: #c4361f;
+  --compression: #1d5fbf;
+  --ok: #2c7a4b;
+  --road: #344045;
+  --wood: #a4703a;
+  --steel: #587088;
+  --font-display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --font-body: "Archivo", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-data: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0b1b2b; --sheet: #0f2539; --ink: #d8e5ef; --muted: #8ca2b5; --line: #24405a;
+    --grid: #15304a; --grid-major: #1f405e; --terrain: #14304a; --water: #1b4c63;
+    --accent: #f2b630; --accent-ink: #0b1b2b; --tension: #ff6b57; --compression: #5aa8ff; --ok: #4cc27e;
+    --road: #c9d7e3; --wood: #d6a064; --steel: #8fb1cf; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0b1b2b; --sheet: #0f2539; --ink: #d8e5ef; --muted: #8ca2b5; --line: #24405a;
+  --grid: #15304a; --grid-major: #1f405e; --terrain: #14304a; --water: #1b4c63;
+  --accent: #f2b630; --accent-ink: #0b1b2b; --tension: #ff6b57; --compression: #5aa8ff; --ok: #4cc27e;
+  --road: #c9d7e3; --wood: #d6a064; --steel: #8fb1cf; color-scheme: dark;
+}
+
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 14px; line-height: 1.45; margin: 0; }
+* { box-sizing: border-box; }
+
+.app {
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 12px;
+  padding-block: 14px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 10px 24px; }
+.brand { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; min-width: 0; }
+h1 { font-family: var(--font-display); font-weight: 700; font-size: 34px; line-height: 1; letter-spacing: 0.01em; margin: 0; text-transform: uppercase; }
+.sub { color: var(--muted); font-size: 13px; }
+.case { display: flex; gap: 10px; flex-wrap: wrap; }
+.field { display: flex; flex-direction: column; gap: 3px; }
+.label { font-family: var(--font-data); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+select {
+  font: 500 13px var(--font-body); color: var(--ink); background: var(--sheet);
+  border: 1px solid var(--line); border-radius: 3px; padding: 6px 8px; min-width: 150px;
+}
+
+.work { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 12px; min-height: 0; }
+.stage { position: relative; background: var(--sheet); border: 1px solid var(--line); min-height: 360px; overflow: hidden; }
+canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: crosshair; }
+.status {
+  position: absolute; left: 10px; top: 10px; right: 10px; pointer-events: none;
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  font-family: var(--font-data); font-size: 11.5px; letter-spacing: 0.04em;
+}
+.chip { background: var(--bg); border: 1px solid var(--line); padding: 3px 8px; border-radius: 2px; text-transform: uppercase; }
+.chip.mode { background: var(--ink); color: var(--sheet); border-color: var(--ink); }
+.chip.pass { background: var(--ok); color: var(--sheet); border-color: var(--ok); }
+.chip.fail { background: var(--tension); color: var(--sheet); border-color: var(--tension); }
+.hint { color: var(--muted); text-transform: none; letter-spacing: 0; font-family: var(--font-body); font-size: 12.5px; }
+
+.panel { display: flex; flex-direction: column; gap: 16px; overflow-y: auto; min-height: 0; padding-right: 2px; }
+.section { display: flex; flex-direction: column; gap: 8px; }
+.section + .section { border-top: 1px solid var(--line); padding-top: 14px; }
+h2 { font-family: var(--font-display); font-weight: 600; font-size: 17px; letter-spacing: 0.04em; text-transform: uppercase; margin: 0; }
+
+.tools { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.tool {
+  display: grid; grid-template-columns: 18px 1fr; grid-template-rows: auto auto; column-gap: 8px; align-items: center;
+  text-align: left; font: 500 13px var(--font-body); color: var(--ink);
+  background: var(--sheet); border: 1px solid var(--line); border-radius: 3px; padding: 7px 8px; cursor: pointer;
+}
+.tool .sw { grid-row: span 2; width: 18px; height: 5px; border-radius: 1px; }
+.tool .meta { font-family: var(--font-data); font-size: 10.5px; color: var(--muted); }
+.tool[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.tool .key { font-family: var(--font-data); font-size: 10px; color: var(--muted); float: right; }
+
+.actions { display: flex; gap: 6px; flex-wrap: wrap; }
+button.btn {
+  font: 600 13px var(--font-body); color: var(--ink); background: var(--sheet);
+  border: 1px solid var(--line); border-radius: 3px; padding: 7px 11px; cursor: pointer;
+}
+button.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); flex: 1 1 100%; padding: 10px 12px; font-size: 14px; }
+button:focus-visible, select:focus-visible { outline: 2px solid var(--compression); outline-offset: 2px; }
+button:disabled { opacity: 0.45; cursor: not-allowed; }
+.toggle { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); }
+
+dl.read { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0; font-size: 13px; }
+dl.read dt { color: var(--muted); }
+dl.read dd { margin: 0; text-align: right; font-family: var(--font-data); font-variant-numeric: tabular-nums; font-size: 12.5px; }
+.over { color: var(--tension); }
+.meter { height: 8px; background: var(--grid); border-radius: 1px; position: relative; overflow: hidden; }
+.meter > i { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--ok); transition: width 0.12s linear; }
+.meter.warn > i { background: var(--accent); }
+.meter.crit > i { background: var(--tension); }
+
+.legend { display: flex; flex-direction: column; gap: 4px; }
+.legend .bar { height: 8px; border-radius: 1px; background: linear-gradient(90deg, var(--compression), var(--grid-major) 50%, var(--tension)); }
+.legend .ends { display: flex; justify-content: space-between; font-family: var(--font-data); font-size: 10.5px; color: var(--muted); }
+.inspect { font-family: var(--font-data); font-size: 12px; min-height: 3.2em; color: var(--ink); white-space: pre-line; }
+.note { color: var(--muted); font-size: 12.5px; margin: 0; max-width: 60ch; }
+
+@media (max-width: 820px) {
+  html, body { height: auto; }
+  .app { height: auto; }
+  .work { grid-template-columns: minmax(0, 1fr); }
+  .stage { height: 60vh; min-height: 320px; }
+  .panel { overflow: visible; }
+  h1 { font-size: 28px; }
+}
+@media (prefers-reduced-motion: reduce) { .meter > i { transition: none; } }
+</style>
+
+<div class="app">
+  <header>
+    <div class="brand">
+      <h1>Bridge Lab</h1>
+      <span class="sub">Design a truss, then drive a load across it.</span>
+    </div>
+    <div class="case">
+      <label class="field"><span class="label">Span</span>
+        <select id="span">
+          <option value="10">Creek · 10 m</option>
+          <option value="14" selected>Gorge · 14 m</option>
+          <option value="18">Canyon · 18 m</option>
+        </select>
+      </label>
+      <label class="field"><span class="label">Load case</span>
+        <select id="vehicle">
+          <option value="car">Car · 1.2 t</option>
+          <option value="van" selected>Van · 3.5 t</option>
+          <option value="truck">Truck · 7.5 t</option>
+        </select>
+      </label>
+    </div>
+  </header>
+
+  <div class="work">
+    <div class="stage" id="stage">
+      <canvas id="cv" aria-label="Bridge drawing. Drag from a joint to add a member."></canvas>
+      <div class="status"><span class="chip mode" id="modeChip">Build</span><span class="hint" id="hint">Drag from a joint to add a member. Road members carry the vehicle.</span></div>
+    </div>
+
+    <aside class="panel">
+      <section class="section">
+        <h2>Members</h2>
+        <div class="tools" id="tools">
+          <button class="tool" data-tool="road" aria-pressed="false"><span class="sw" style="background:var(--road)"></span><span>Road <span class="key">1</span></span><span class="meta">$180/m · 120 kN</span></button>
+          <button class="tool" data-tool="wood" aria-pressed="false"><span class="sw" style="background:var(--wood)"></span><span>Timber <span class="key">2</span></span><span class="meta">$70/m · 60 kN</span></button>
+          <button class="tool" data-tool="steel" aria-pressed="false"><span class="sw" style="background:var(--steel)"></span><span>Steel <span class="key">3</span></span><span class="meta">$220/m · 180 kN</span></button>
+          <button class="tool" data-tool="erase" aria-pressed="false"><span class="sw" style="background:repeating-linear-gradient(90deg,var(--tension) 0 3px,transparent 3px 5px)"></span><span>Erase <span class="key">E</span></span><span class="meta">tap a member</span></button>
+        </div>
+        <div class="actions">
+          <button class="btn primary" id="run">Run load test</button>
+          <button class="btn" id="undo">Undo</button>
+          <button class="btn" id="example">Load example</button>
+          <button class="btn" id="clear">Clear</button>
+        </div>
+        <label class="toggle"><input type="checkbox" id="slow"> Slow motion</label>
+      </section>
+
+      <section class="section">
+        <h2>Calc sheet</h2>
+        <dl class="read">
+          <dt>Cost / budget</dt><dd id="rCost">–</dd>
+          <dt>Members · joints</dt><dd id="rCount">–</dd>
+          <dt>Self-weight</dt><dd id="rMass">–</dd>
+          <dt>Axle loads</dt><dd id="rAxle">–</dd>
+          <dt>Max tension</dt><dd id="rT">–</dd>
+          <dt>Max compression</dt><dd id="rC">–</dd>
+          <dt>Midspan deflection</dt><dd id="rDef">–</dd>
+          <dt>Peak utilisation</dt><dd id="rU">–</dd>
+        </dl>
+        <div class="meter" id="uMeter"><i></i></div>
+      </section>
+
+      <section class="section">
+        <h2>Inspector</h2>
+        <div class="inspect" id="inspect">Hover a member to see its length and capacity.</div>
+        <div class="legend">
+          <div class="bar"></div>
+          <div class="ends"><span>Compression</span><span>0</span><span>Tension</span></div>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>How it is solved</h2>
+        <p class="note">Each member is a pin-jointed bar with axial stiffness EA. The solver uses XPBD with 60 substeps per frame, so member forces come straight from the constraint multipliers. A member fails when tension exceeds its yield load, or when compression exceeds the lower of yield and the Euler buckling load π²EI/L². Long members in compression buckle first.</p>
+      </section>
+    </aside>
+  </div>
+</div>
+
+<script>
+"use strict";
+// ---------- Constants (SI units: m, kg, N) ----------
+const G = 9.81, MAXLEN = 4.0, SUBSTEPS = 60, DT = 1 / 60;
+const RIVER_Y = -9, DECK_Y = 0;
+const MATS = {
+  //  EA: axial stiffness (N); EI-derived buckling constant k = pi^2 EI (N*m^2); tY/cY: yield (N)
+  road:  { key: "road",  label: "Road",   EA: 6.0e7, kgm: 120, cost: 180, tY: 120e3, cY: 100e3, k: 400e3 },
+  wood:  { key: "wood",  label: "Timber", EA: 1.5e7, kgm: 35,  cost: 70,  tY: 60e3,  cY: 45e3,  k: 200e3 },
+  steel: { key: "steel", label: "Steel",  EA: 8.0e7, kgm: 80,  cost: 220, tY: 180e3, cY: 160e3, k: 900e3 },
+};
+const VEHICLES = {
+  car:   { label: "Car",   kg: 1200, wb: 2.6, len: 4.0, h: 1.45 },
+  van:   { label: "Van",   kg: 3500, wb: 3.3, len: 5.2, h: 2.4 },
+  truck: { label: "Truck", kg: 7500, wb: 4.0, len: 6.6, h: 3.1 },
+};
+const BUDGET = { 10: 9000, 14: 15000, 18: 24000 };
+const compCap = (mat, L) => Math.min(mat.cY, mat.k / (L * L));
+const bucklingGoverns = (mat, L) => mat.k / (L * L) < mat.cY;
+
+// ---------- State ----------
+let span = 14, vehicleKey = "van", tool = "road";
+let design = null;           // { nodes:[{x,y,anchor}], members:[{a,b,mat}] }
+let undoStack = [];
+let sim = null;              // live simulation, null while building
+let slow = false;
+let hover = { node: -1, member: -1 }, drag = null, selected = -1;
+let pointerWorld = null;
+
+const $ = (id) => document.getElementById(id);
+const cv = $("cv"), ctx = cv.getContext("2d"), stage = $("stage");
+
+function anchorsFor(S) {
+  return [{ x: 0, y: 0, anchor: true }, { x: 0, y: -3, anchor: true }, { x: S, y: 0, anchor: true }, { x: S, y: -3, anchor: true }];
+}
+function emptyDesign(S) { return { nodes: anchorsFor(S), members: [] }; }
+
+// A Pratt through truss: road deck as the bottom chord, steel top chord and posts,
+// timber diagonals in tension, steel diagonals in the middle panels where shear reverses.
+function exampleDesign(S) {
+  const d = emptyDesign(S);
+  const depth = S <= 10 ? 2 : 3;
+  const nodeAt = (x, y) => {
+    let i = d.nodes.findIndex((n) => n.x === x && n.y === y);
+    if (i < 0) { d.nodes.push({ x, y }); i = d.nodes.length - 1; }
+    return i;
+  };
+  const add = (a, b, mat) => d.members.push({ a, b, mat });
+  const bays = S / 2;
+  for (let i = 0; i < bays; i++) add(nodeAt(2 * i, 0), nodeAt(2 * i + 2, 0), "road");
+  for (let i = 1; i < bays; i++) {
+    const top = nodeAt(2 * i, depth);
+    add(nodeAt(2 * i, 0), top, depth > 2 ? "steel" : "wood");
+    if (i < bays - 1) add(top, nodeAt(2 * i + 2, depth), "steel");
+  }
+  add(nodeAt(0, 0), nodeAt(2, depth), "steel");
+  add(nodeAt(S, 0), nodeAt(S - 2, depth), "steel");
+  if (S > 14) { // long spans: raking struts from the lower cliff anchors shorten the effective span
+    add(nodeAt(0, -3), nodeAt(2, 0), "steel");
+    add(nodeAt(S, -3), nodeAt(S - 2, 0), "steel");
+  }
+  for (let i = 1; i < bays - 1; i++) {
+    const x = 2 * i, mid = S > 14 || Math.abs(x + 1 - S / 2) <= 2;
+    const mat = mid ? "steel" : "wood";
+    if (x + 1 <= S / 2) add(nodeAt(x, depth), nodeAt(x + 2, 0), mat);
+    else add(nodeAt(x + 2, depth), nodeAt(x, 0), mat);
+  }
+  return d;
+}
+
+// ---------- Persistence (per-viewer convenience only) ----------
+function saveDesign() { try { localStorage.setItem("bridgelab:v1:" + span, JSON.stringify(design)); } catch (e) {} }
+function loadDesign(S) {
+  try {
+    const raw = localStorage.getItem("bridgelab:v1:" + S);
+    if (raw) { const d = JSON.parse(raw); if (d && Array.isArray(d.nodes) && Array.isArray(d.members)) return d; }
+  } catch (e) {}
+  return exampleDesign(S);
+}
+function pushUndo() { undoStack.push(JSON.stringify(design)); if (undoStack.length > 100) undoStack.shift(); }
+
+// ---------- Geometry helpers ----------
+const memLen = (d, m) => Math.hypot(d.nodes[m.b].x - d.nodes[m.a].x, d.nodes[m.b].y - d.nodes[m.a].y);
+function inTerrain(x, y) { return (x < 0 || x > span) && y < 0 || y < RIVER_Y; }
+function costOf(d) { return d.members.reduce((s, m) => s + memLen(d, m) * MATS[m.mat].cost, 0); }
+function massOf(d) { return d.members.reduce((s, m) => s + memLen(d, m) * MATS[m.mat].kgm, 0); }
+function pruneNodes(d) {
+  const used = new Set();
+  d.members.forEach((m) => { used.add(m.a); used.add(m.b); });
+  const remap = [], nodes = [];
+  d.nodes.forEach((n, i) => { if (n.anchor || used.has(i)) { remap[i] = nodes.length; nodes.push(n); } });
+  d.members.forEach((m) => { m.a = remap[m.a]; m.b = remap[m.b]; });
+  d.nodes = nodes;
+}
+function distToSeg(px, py, ax, ay, bx, by) {
+  const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy;
+  let t = l2 ? ((px - ax) * dx + (py - ay) * dy) / l2 : 0;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+}
+
+// ---------- Simulation (XPBD, small steps: one solve per substep) ----------
+function startSim() {
+  const nodes = design.nodes.map((n) => ({ x: n.x, y: n.y, px: n.x, py: n.y, vx: 0, vy: 0, m: 0, fx: 0, fy: 0, fixed: !!n.anchor, w: 0 }));
+  const members = design.members.map((m, i) => {
+    const a = nodes[m.a], b = nodes[m.b], mat = MATS[m.mat];
+    const L = Math.hypot(b.x - a.x, b.y - a.y), mass = L * mat.kgm;
+    a.m += mass / 2; b.m += mass / 2;
+    return { a: m.a, b: m.b, mat, L, alpha: L / mat.EA, tCap: mat.tY, cCap: compCap(mat, L), F: 0, Ff: 0, peakU: 0, broken: false, id: i };
+  });
+  nodes.forEach((n) => { n.m = Math.max(n.m, 2); n.w = n.fixed ? 0 : 1 / n.m; });
+  const V = VEHICLES[vehicleKey];
+  // midspan deck reference: the road joint nearest to x = S/2
+  let mid = -1, best = 1e9;
+  design.members.forEach((m) => { if (m.mat !== "road") return; [m.a, m.b].forEach((i) => { const n = design.nodes[i]; const d = Math.abs(n.x - span / 2); if (!n.anchor && d < best) { best = d; mid = i; } }); });
+  sim = {
+    nodes, members, t: 0,
+    truck: { x: -V.wb - 1.5, state: "wait", axles: [null, null], fall: null, V },
+    result: null, flashes: [], peak: { u: 0, id: -1 }, maxT: 0, maxC: 0, midNode: mid, midY0: mid >= 0 ? nodes[mid].y : 0, maxDef: 0,
+  };
+}
+
+function findSupport(x, prevY) {
+  if (x <= 0 || x >= span) return { y: DECK_Y, ground: true };
+  let best = null, bestD = 0.9;
+  for (const m of sim.members) {
+    if (m.broken || m.mat.key !== "road") continue;
+    let a = sim.nodes[m.a], b = sim.nodes[m.b], ia = m.a, ib = m.b;
+    if (a.x > b.x) { [a, b] = [b, a]; [ia, ib] = [ib, ia]; }
+    if (x < a.x || x > b.x || b.x - a.x < 1e-6) continue;
+    const t = (x - a.x) / (b.x - a.x), y = a.y + t * (b.y - a.y);
+    const d = prevY == null ? 0 : Math.abs(y - prevY);
+    if (d < bestD) { bestD = d; best = { y, a: ia, b: ib, t }; }
+  }
+  return best;
+}
+
+function stepSim(dt) {
+  const S = sim, T = S.truck, V = T.V, W = V.kg * G;
+  S.t += dt;
+  // vehicle kinematics and loads
+  S.nodes.forEach((n) => { n.fx = 0; n.fy = 0; });
+  if (T.state === "wait" && S.t > 1.0) T.state = "drive";
+  if (T.state === "drive" || T.state === "wait") {
+    if (T.state === "drive") T.x += 3.2 * dt;
+    const xs = [T.x, T.x + V.wb];
+    for (let k = 0; k < 2; k++) {
+      const prev = T.axles[k] ? T.axles[k].y : DECK_Y;
+      const s = findSupport(xs[k], prev);
+      if (!s) {
+        T.state = "fall";
+        T.fall = { pts: xs.map((x, j) => ({ x, y: T.axles[j] ? T.axles[j].y : 0, vx: 2.5, vy: 0 })) };
+        failRun("The deck under the " + V.label.toLowerCase() + " gave way.");
+        break;
+      }
+      T.axles[k] = { x: xs[k], ...s };
+      if (!s.ground) {
+        const P = W / 2;
+        S.nodes[s.a].fy -= P * (1 - s.t);
+        S.nodes[s.b].fy -= P * s.t;
+      }
+    }
+    if (T.state !== "fall" && T.x > span + 0.6) { T.state = "done"; passRun(); }
+  }
+  if (T.state === "fall") {
+    for (const p of T.fall.pts) { p.vy -= G * dt; p.x += p.vx * dt; p.y += p.vy * dt; if (p.y < RIVER_Y + 0.4) { p.y = RIVER_Y + 0.4; p.vy = 0; p.vx *= 0.9; } }
+  }
+
+  const h = dt / SUBSTEPS, h2 = h * h, damp = Math.exp(-0.8 * h);
+  for (const m of S.members) m.F = 0;
+  for (let s = 0; s < SUBSTEPS; s++) {
+    for (const n of S.nodes) {
+      if (n.fixed) continue;
+      n.vx = n.vx * damp + (n.fx * n.w) * h;
+      n.vy = n.vy * damp + (-G + n.fy * n.w) * h;
+      n.px = n.x; n.py = n.y;
+      n.x += n.vx * h; n.y += n.vy * h;
+    }
+    for (const m of S.members) {
+      if (m.broken) continue;
+      const a = S.nodes[m.a], b = S.nodes[m.b];
+      const wsum = a.w + b.w;
+      if (wsum === 0) continue;
+      let dx = b.x - a.x, dy = b.y - a.y;
+      const d = Math.hypot(dx, dy) || 1e-9;
+      dx /= d; dy /= d;
+      const C = d - m.L, at = m.alpha / h2;
+      const dl = -C / (wsum + at);
+      a.x -= a.w * dl * dx; a.y -= a.w * dl * dy;
+      b.x += b.w * dl * dx; b.y += b.w * dl * dy;
+      m.F += -dl / h2;  // tension positive
+    }
+    for (const n of S.nodes) {
+      if (n.fixed) continue;
+      if (n.y < RIVER_Y) { n.y = RIVER_Y; }
+      else if ((n.x < 0 || n.x > span) && n.y < 0) {
+        const dxw = n.x < 0 ? -n.x : n.x - span;
+        if (dxw < -n.y) n.x = n.x < 0 ? 0 : span; else n.y = 0;
+      }
+      n.vx = (n.x - n.px) / h; n.vy = (n.y - n.py) / h;
+    }
+  }
+
+  // member forces: average over substeps, then low-pass to suppress solver jitter
+  const kf = 1 - Math.exp(-dt / 0.04);
+  let maxT = 0, maxC = 0;
+  for (const m of S.members) {
+    if (m.broken) continue;
+    m.F /= SUBSTEPS;
+    m.Ff += (m.F - m.Ff) * kf;
+    const u = m.Ff >= 0 ? m.Ff / m.tCap : -m.Ff / m.cCap;
+    if (S.t > 0.4) {
+      m.peakU = Math.max(m.peakU, u);
+      if (u > S.peak.u) S.peak = { u, id: m.id };
+      if (u > 1) breakMember(m);
+    }
+    if (m.Ff > maxT) maxT = m.Ff;
+    if (-m.Ff > maxC) maxC = -m.Ff;
+  }
+  S.maxT = Math.max(S.maxT, maxT); S.maxC = Math.max(S.maxC, maxC);
+  S.liveT = maxT; S.liveC = maxC;
+  if (S.midNode >= 0 && !S.result) S.maxDef = Math.max(S.maxDef, S.midY0 - S.nodes[S.midNode].y);
+  S.flashes = S.flashes.filter((f) => (f.t += dt) < 0.6);
+}
+
+function breakMember(m) {
+  m.broken = true;
+  const a = sim.nodes[m.a], b = sim.nodes[m.b];
+  sim.flashes.push({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, t: 0 });
+  if (!sim.firstBreak) {
+    const mode = m.Ff >= 0 ? "yielded in tension" : bucklingGoverns(m.mat, m.L) ? "buckled" : "crushed in compression";
+    sim.firstBreak = `M${m.id + 1} (${m.mat.label.toLowerCase()}, ${m.L.toFixed(2)} m) ${mode} at ${Math.abs(m.Ff / 1000).toFixed(1)} kN.`;
+  }
+}
+function failRun(why) {
+  if (sim.result) return;
+  sim.result = { pass: false, text: why + (sim.firstBreak ? " First failure: " + sim.firstBreak : "") };
+}
+function passRun() {
+  if (sim.result) return;
+  sim.result = { pass: true, text: `Crossed. Peak utilisation ${(sim.peak.u * 100).toFixed(0)}% in M${sim.peak.id + 1}.` + (sim.firstBreak ? " Damaged: " + sim.firstBreak : "") };
+}
+
+// ---------- View transform ----------
+let view = { s: 40, ox: 0, oy: 0, w: 0, h: 0, dpr: 1 };
+function layoutView() {
+  const r = stage.getBoundingClientRect(), dpr = Math.min(window.devicePixelRatio || 1, 2);
+  view.w = r.width; view.h = r.height; view.dpr = dpr;
+  cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr);
+  const x0 = -4, x1 = span + 4, y0 = RIVER_Y - 1.2, y1 = 7.5;
+  const s = Math.min(r.width / (x1 - x0), (r.height - 36) / (y1 - y0));
+  view.s = s;
+  view.ox = (r.width - (x1 - x0) * s) / 2 - x0 * s;
+  view.oy = 36 + ((r.height - 36) - (y1 - y0) * s) / 2 + y1 * s;
+}
+const sx = (x) => view.ox + x * view.s, sy = (y) => view.oy - y * view.s;
+const wx = (px) => (px - view.ox) / view.s, wy = (py) => (view.oy - py) / view.s;
+
+// ---------- Theme tokens for the canvas ----------
+let C = {};
+function readTokens() {
+  const cs = getComputedStyle(document.documentElement);
+  ["sheet", "ink", "muted", "line", "grid", "grid-major", "terrain", "water", "accent", "tension", "compression", "ok", "road", "wood", "steel"].forEach((k) => { C[k] = cs.getPropertyValue("--" + k).trim(); });
+  C.fData = cs.getPropertyValue("--font-data").trim();
+}
+function hexRgb(h) {
+  h = h.replace("#", ""); if (h.length === 3) h = h.split("").map((c) => c + c).join("");
+  const n = parseInt(h, 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+function mix(c1, c2, t) {
+  const a = hexRgb(c1), b = hexRgb(c2);
+  return `rgb(${a.map((v, i) => Math.round(v + (b[i] - v) * t)).join(",")})`;
+}
+
+// ---------- Rendering ----------
+function draw() {
+  const { dpr } = view;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, view.w, view.h);
+  drawGrid();
+  drawTerrain();
+  drawDimension();
+  if (sim) drawSimStructure(); else drawDesign();
+  drawVehicle();
+  if (sim) for (const f of sim.flashes) {
+    const k = f.t / 0.6;
+    ctx.strokeStyle = C.tension; ctx.globalAlpha = 1 - k; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(sx(f.x), sy(f.y), 6 + k * 26, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1;
+  }
+}
+
+function drawGrid() {
+  const x0 = Math.floor(wx(0)) - 1, x1 = Math.ceil(wx(view.w)) + 1, y0 = Math.floor(wy(view.h)) - 1, y1 = Math.ceil(wy(0)) + 1;
+  ctx.lineWidth = 1;
+  for (let x = x0; x <= x1; x++) {
+    ctx.strokeStyle = x % 5 === 0 ? C["grid-major"] : C.grid;
+    ctx.beginPath(); ctx.moveTo(Math.round(sx(x)) + 0.5, 0); ctx.lineTo(Math.round(sx(x)) + 0.5, view.h); ctx.stroke();
+  }
+  for (let y = y0; y <= y1; y++) {
+    ctx.strokeStyle = y % 5 === 0 ? C["grid-major"] : C.grid;
+    ctx.beginPath(); ctx.moveTo(0, Math.round(sy(y)) + 0.5); ctx.lineTo(view.w, Math.round(sy(y)) + 0.5); ctx.stroke();
+  }
+}
+
+function hatchRect(x0, y0, x1, y1) {
+  // section hatch at 45 degrees, as on a drawing
+  ctx.save();
+  ctx.beginPath(); ctx.rect(sx(x0), sy(y1), (x1 - x0) * view.s, (y1 - y0) * view.s); ctx.clip();
+  ctx.fillStyle = C.terrain; ctx.fillRect(sx(x0), sy(y1), (x1 - x0) * view.s, (y1 - y0) * view.s);
+  ctx.strokeStyle = C["grid-major"]; ctx.lineWidth = 1;
+  const step = 9, W = (x1 - x0) * view.s, H = (y1 - y0) * view.s, X = sx(x0), Y = sy(y1);
+  for (let k = -H; k < W; k += step) { ctx.beginPath(); ctx.moveTo(X + k, Y + H); ctx.lineTo(X + k + H, Y); ctx.stroke(); }
+  ctx.restore();
+}
+
+function drawTerrain() {
+  const far = 40;
+  // river
+  ctx.fillStyle = C.water; ctx.globalAlpha = 0.55;
+  ctx.fillRect(sx(-far), sy(RIVER_Y + 0.6), (span + 2 * far) * view.s, view.h);
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = C.water; ctx.lineWidth = 1.5; ctx.beginPath();
+  for (let x = 0; x <= span; x += 0.1) { const y = RIVER_Y + 0.6 + Math.sin(x * 3) * 0.06; x === 0 ? ctx.moveTo(sx(x), sy(y)) : ctx.lineTo(sx(x), sy(y)); }
+  ctx.stroke();
+  hatchRect(-far, RIVER_Y - 5, 0, 0);
+  hatchRect(span, RIVER_Y - 5, span + far, 0);
+  ctx.strokeStyle = C.ink; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(sx(-far), sy(0)); ctx.lineTo(sx(0), sy(0)); ctx.lineTo(sx(0), sy(RIVER_Y - 5)); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(sx(span + far), sy(0)); ctx.lineTo(sx(span), sy(0)); ctx.lineTo(sx(span), sy(RIVER_Y - 5)); ctx.stroke();
+  // datum marker
+  const mx = sx(span + 1.6), my = sy(0);
+  ctx.fillStyle = C.ink; ctx.beginPath(); ctx.moveTo(mx - 5, my - 9); ctx.lineTo(mx + 5, my - 9); ctx.lineTo(mx, my - 1); ctx.closePath(); ctx.fill();
+  ctx.font = `11px ${C.fData}`; ctx.textBaseline = "alphabetic";
+  const fits = mx + 8 + ctx.measureText("±0.000").width < view.w - 4;
+  ctx.textAlign = fits ? "left" : "right";
+  ctx.fillText("±0.000", fits ? mx + 8 : mx - 8, my - 2);
+}
+
+function drawDimension() {
+  const y = sy(6.6), a = sx(0), b = sx(span);
+  ctx.strokeStyle = C.muted; ctx.fillStyle = C.muted; ctx.lineWidth = 1;
+  ctx.setLineDash([3, 3]);
+  [a, b].forEach((x) => { ctx.beginPath(); ctx.moveTo(x + 0.5, sy(0.4)); ctx.lineTo(x + 0.5, y - 6); ctx.stroke(); });
+  ctx.setLineDash([]);
+  ctx.beginPath(); ctx.moveTo(a, y); ctx.lineTo(b, y); ctx.stroke();
+  [a, b].forEach((x) => { ctx.beginPath(); ctx.moveTo(x - 4, y + 4); ctx.lineTo(x + 4, y - 4); ctx.stroke(); });
+  const label = span.toFixed(3) + " m";
+  ctx.font = `12px ${C.fData}`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  const tw = ctx.measureText(label).width + 12;
+  ctx.fillStyle = C.sheet; ctx.fillRect((a + b) / 2 - tw / 2, y - 8, tw, 16);
+  ctx.fillStyle = C.ink; ctx.fillText(label, (a + b) / 2, y);
+}
+
+function memberWidth(mat) { return Math.max(2.5, view.s * (mat === "road" ? 0.16 : mat === "steel" ? 0.1 : 0.12)); }
+
+function strokeMember(x1, y1, x2, y2, mat, color) {
+  ctx.lineCap = "round";
+  ctx.strokeStyle = color; ctx.lineWidth = memberWidth(mat);
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+  if (mat === "steel") { // open web steel reads as a hollow section
+    ctx.strokeStyle = C.sheet; ctx.lineWidth = Math.max(1, memberWidth(mat) * 0.35);
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+  }
+}
+
+function drawJoint(x, y, anchor, hot) {
+  const r = Math.max(3.5, view.s * 0.11);
+  if (anchor) {
+    ctx.fillStyle = C.ink;
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - r * 1.6, y + r * 2.4); ctx.lineTo(x + r * 1.6, y + r * 2.4); ctx.closePath();
+    ctx.globalAlpha = 0.18; ctx.fill(); ctx.globalAlpha = 1;
+  }
+  ctx.fillStyle = C.sheet; ctx.strokeStyle = hot ? C.accent : C.ink; ctx.lineWidth = hot ? 3 : 1.6;
+  ctx.beginPath(); ctx.arc(x, y, hot ? r + 2 : r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+}
+
+function drawDesign() {
+  const d = design;
+  d.members.forEach((m, i) => {
+    const a = d.nodes[m.a], b = d.nodes[m.b];
+    const col = i === hover.member && tool === "erase" ? C.tension : C[m.mat];
+    strokeMember(sx(a.x), sy(a.y), sx(b.x), sy(b.y), m.mat, col);
+    if (i === hover.member) {
+      ctx.strokeStyle = C.accent; ctx.lineWidth = 1.5; ctx.setLineDash([4, 3]);
+      ctx.beginPath(); ctx.moveTo(sx(a.x), sy(a.y)); ctx.lineTo(sx(b.x), sy(b.y)); ctx.stroke(); ctx.setLineDash([]);
+    }
+  });
+  d.nodes.forEach((n, i) => drawJoint(sx(n.x), sy(n.y), n.anchor, i === hover.node || (drag && drag.from === i)));
+  if (drag && drag.to) {
+    const a = d.nodes[drag.from], ok = drag.valid;
+    ctx.setLineDash([6, 4]);
+    strokeMember(sx(a.x), sy(a.y), sx(drag.to.x), sy(drag.to.y), tool, ok ? C[tool] : C.tension);
+    ctx.setLineDash([]);
+    ctx.fillStyle = ok ? C.sheet : C.tension; ctx.strokeStyle = ok ? C.ink : C.tension; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(sx(drag.to.x), sy(drag.to.y), 4, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    const L = Math.hypot(drag.to.x - a.x, drag.to.y - a.y);
+    const mat = MATS[tool];
+    const txt = L > MAXLEN ? `${L.toFixed(2)} m · max ${MAXLEN.toFixed(1)} m`
+      : `${L.toFixed(2)} m · C ${(compCap(mat, L) / 1000).toFixed(0)} kN${bucklingGoverns(mat, L) ? " (buckling)" : ""}`;
+    tag(sx(drag.to.x) + 10, sy(drag.to.y) - 14, txt, ok ? C.ink : C.tension);
+  }
+}
+
+function tag(x, y, text, color) {
+  ctx.font = `11.5px ${C.fData}`; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+  const w = ctx.measureText(text).width + 10;
+  if (x + w > view.w - 6) x = view.w - 6 - w;
+  if (y < 46) y = 46;
+  ctx.fillStyle = C.sheet; ctx.strokeStyle = C.line; ctx.lineWidth = 1;
+  ctx.fillRect(x, y - 9, w, 18); ctx.strokeRect(x + 0.5, y - 8.5, w - 1, 17);
+  ctx.fillStyle = color; ctx.fillText(text, x + 5, y);
+}
+
+function stressColor(m) {
+  const u = m.Ff >= 0 ? m.Ff / m.tCap : -m.Ff / m.cCap;
+  const t = Math.min(1, Math.max(0, u));
+  return mix(C["grid-major"], m.Ff >= 0 ? C.tension : C.compression, 0.25 + 0.75 * Math.sqrt(t));
+}
+
+function drawSimStructure() {
+  const S = sim;
+  S.members.forEach((m) => {
+    if (m.broken) return;
+    const a = S.nodes[m.a], b = S.nodes[m.b];
+    strokeMember(sx(a.x), sy(a.y), sx(b.x), sy(b.y), m.mat.key, stressColor(m));
+    if (m.mat.key === "road") { // deck surface line
+      ctx.strokeStyle = C[ "road" ]; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(sx(a.x), sy(a.y) - memberWidth("road") / 2); ctx.lineTo(sx(b.x), sy(b.y) - memberWidth("road") / 2); ctx.stroke();
+    }
+  });
+  if (selected >= 0 && S.members[selected] && !S.members[selected].broken) {
+    const m = S.members[selected], a = S.nodes[m.a], b = S.nodes[m.b];
+    ctx.strokeStyle = C.accent; ctx.lineWidth = 1.5; ctx.setLineDash([4, 3]);
+    ctx.beginPath(); ctx.moveTo(sx(a.x), sy(a.y)); ctx.lineTo(sx(b.x), sy(b.y)); ctx.stroke(); ctx.setLineDash([]);
+  }
+  const used = new Set();
+  S.members.forEach((m) => { if (!m.broken) { used.add(m.a); used.add(m.b); } });
+  S.nodes.forEach((n, i) => { if (n.fixed || used.has(i)) drawJoint(sx(n.x), sy(n.y), n.fixed, false); });
+}
+
+function drawVehicle() {
+  const V = VEHICLES[vehicleKey];
+  let r, f;
+  if (!sim) { r = { x: -V.wb - 1.5, y: 0 }; f = { x: -1.5, y: 0 }; }
+  else if (sim.truck.state === "fall") { [r, f] = sim.truck.fall.pts; }
+  else {
+    const T = sim.truck;
+    r = T.axles[0] ? { x: T.axles[0].x, y: T.axles[0].y } : { x: T.x, y: 0 };
+    f = T.axles[1] ? { x: T.axles[1].x, y: T.axles[1].y } : { x: T.x + V.wb, y: 0 };
+  }
+  const ang = Math.atan2(f.y - r.y, f.x - r.x);
+  const s = view.s, wr = 0.42;
+  ctx.save();
+  ctx.translate(sx(r.x), sy(r.y));
+  ctx.rotate(-ang);
+  ctx.scale(s, -s); // local metres, y up, origin at rear contact point
+  const lw = 1.4 / s;
+  const over = (V.len - V.wb) / 2;
+  ctx.lineJoin = "round"; ctx.lineWidth = lw; ctx.strokeStyle = C.ink;
+  // body
+  ctx.fillStyle = C.accent;
+  if (vehicleKey === "car") {
+    ctx.beginPath();
+    ctx.moveTo(-over, wr * 0.8); ctx.lineTo(V.wb + over, wr * 0.8); ctx.lineTo(V.wb + over, 0.95);
+    ctx.lineTo(V.wb * 0.78, 1.0); ctx.lineTo(V.wb * 0.55, V.h); ctx.lineTo(V.wb * 0.05, V.h); ctx.lineTo(-over * 0.8, 1.0); ctx.closePath();
+    ctx.fill(); ctx.stroke();
+  } else {
+    const cabStart = V.wb - 0.2;
+    ctx.beginPath(); ctx.rect(-over, wr * 0.9, cabStart + over - 0.1, V.h - wr * 0.9); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cabStart, wr * 0.9); ctx.lineTo(V.wb + over, wr * 0.9); ctx.lineTo(V.wb + over, V.h * 0.55);
+    ctx.lineTo(V.wb + over - 0.35, V.h * 0.78); ctx.lineTo(cabStart, V.h * 0.78); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = C.sheet; ctx.globalAlpha = 0.85;
+    ctx.beginPath(); ctx.rect(cabStart + 0.2, V.h * 0.5, V.wb + over - cabStart - 0.65, V.h * 0.22); ctx.fill(); ctx.globalAlpha = 1;
+    // payload mark
+    ctx.fillStyle = C.ink; ctx.save(); ctx.scale(1, -1);
+    ctx.font = `600 ${0.55}px ${C.fData}`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText((V.kg / 1000).toFixed(1) + " t", (cabStart - over) / 2, -(V.h + wr) / 2); ctx.restore();
+  }
+  // wheels
+  [0, V.wb].forEach((x) => {
+    ctx.fillStyle = C.ink; ctx.beginPath(); ctx.arc(x, wr, wr, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = C.sheet; ctx.beginPath(); ctx.arc(x, wr, wr * 0.4, 0, Math.PI * 2); ctx.fill();
+  });
+  ctx.restore();
+  // axle load arrows while on the bridge
+  if (sim && (sim.truck.state === "drive")) {
+    sim.truck.axles.forEach((a) => {
+      if (!a || a.ground) return;
+      // axle load transmitted into the deck, drawn below it so the vehicle stays clear
+      const X = sx(a.x), Y = sy(a.y) + memberWidth("road") / 2 + 3;
+      ctx.strokeStyle = C.ink; ctx.fillStyle = C.ink; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(X, Y); ctx.lineTo(X, Y + 16); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(X, Y + 22); ctx.lineTo(X - 4, Y + 15); ctx.lineTo(X + 4, Y + 15); ctx.closePath(); ctx.fill();
+      ctx.font = `10.5px ${C.fData}`; ctx.textAlign = "center"; ctx.textBaseline = "top";
+      ctx.fillText(kN(sim.truck.V.kg * G / 2), X, Y + 25);
+    });
+  }
+}
+
+// ---------- Readouts ----------
+const fmtMoney = (v) => "$" + Math.round(v).toLocaleString("en-US");
+const kN = (v) => (v / 1000).toFixed(1) + " kN";
+let lastPanel = 0;
+function updatePanel(force) {
+  const now = performance.now();
+  if (!force && now - lastPanel < 90) return;
+  lastPanel = now;
+  const cost = costOf(design), budget = BUDGET[span];
+  $("rCost").innerHTML = `<span class="${cost > budget ? "over" : ""}">${fmtMoney(cost)}</span> / ${fmtMoney(budget)}`;
+  $("rCount").textContent = `${design.members.length} · ${design.nodes.length}`;
+  $("rMass").textContent = (massOf(design) / 1000).toFixed(2) + " t";
+  const V = VEHICLES[vehicleKey];
+  $("rAxle").textContent = "2 × " + kN(V.kg * G / 2);
+  const meter = $("uMeter");
+  if (sim) {
+    $("rT").textContent = kN(sim.liveT || 0) + " · pk " + kN(sim.maxT);
+    $("rC").textContent = kN(sim.liveC || 0) + " · pk " + kN(sim.maxC);
+    $("rDef").textContent = sim.midNode >= 0 ? (sim.maxDef * 1000).toFixed(0) + " mm" : "no deck joint";
+    const u = sim.peak.u;
+    $("rU").textContent = sim.peak.id >= 0 ? `${(u * 100).toFixed(0)}% · M${sim.peak.id + 1}` : "–";
+    meter.firstElementChild.style.width = Math.min(100, u * 100) + "%";
+    meter.className = "meter" + (u >= 1 ? " crit" : u > 0.8 ? " warn" : "");
+  } else {
+    ["rT", "rC", "rDef", "rU"].forEach((id) => { $(id).textContent = "run a test"; });
+    meter.firstElementChild.style.width = "0%"; meter.className = "meter";
+  }
+  updateInspector();
+  updateStatus();
+}
+
+function updateInspector() {
+  const el = $("inspect");
+  if (sim) {
+    const m = sim.members[selected >= 0 ? selected : hover.member];
+    if (!m) { el.textContent = "Tap or hover a member to read its force."; return; }
+    if (m.broken) { el.textContent = `M${m.id + 1} · ${m.mat.label} · failed`; return; }
+    const sense = m.Ff >= 0 ? "tension" : "compression";
+    const u = m.Ff >= 0 ? m.Ff / m.tCap : -m.Ff / m.cCap;
+    el.textContent = `M${m.id + 1} · ${m.mat.label} · ${m.L.toFixed(2)} m\nForce ${kN(Math.abs(m.Ff))} ${sense}\nUtilisation ${(u * 100).toFixed(0)}% now, ${(m.peakU * 100).toFixed(0)}% peak`;
+    return;
+  }
+  const i = hover.member;
+  if (i < 0) { el.textContent = "Hover a member to see its length and capacity."; return; }
+  const m = design.members[i], mat = MATS[m.mat], L = memLen(design, m);
+  el.textContent = `M${i + 1} · ${mat.label} · ${L.toFixed(2)} m\nTension capacity ${kN(mat.tY)}\nCompression ${kN(compCap(mat, L))}${bucklingGoverns(mat, L) ? " (Euler buckling)" : " (yield)"}`;
+}
+
+function updateStatus() {
+  const chip = $("modeChip"), hint = $("hint");
+  if (!sim) {
+    chip.className = "chip mode"; chip.textContent = "Build";
+    hint.textContent = tool === "erase" ? "Tap a member to remove it." : "Drag from a joint to add a member. Road members carry the vehicle.";
+  } else if (!sim.result) {
+    chip.className = "chip mode"; chip.textContent = "Load test · " + sim.t.toFixed(1) + " s";
+    hint.textContent = sim.firstBreak ? "Member failure: " + sim.firstBreak : "Red members are in tension, blue in compression.";
+  } else {
+    chip.className = "chip " + (sim.result.pass ? "pass" : "fail");
+    chip.textContent = sim.result.pass ? "Passed" : "Collapse";
+    hint.textContent = sim.result.text;
+  }
+  $("run").textContent = sim ? "Back to editing" : "Run load test";
+  ["undo", "example", "clear"].forEach((id) => { $(id).disabled = !!sim; });
+  document.querySelectorAll(".tool").forEach((b) => { b.disabled = !!sim; b.setAttribute("aria-pressed", String(b.dataset.tool === tool)); });
+}
+
+// ---------- Interaction ----------
+function pickNode(px, py) {
+  const tol = Math.max(14, view.s * 0.3);
+  let best = -1, bd = tol;
+  design.nodes.forEach((n, i) => { const d = Math.hypot(sx(n.x) - px, sy(n.y) - py); if (d < bd) { bd = d; best = i; } });
+  return best;
+}
+function pickMember(px, py, nodes, members) {
+  const tol = 10;
+  let best = -1, bd = tol;
+  members.forEach((m, i) => {
+    if (m.broken) return;
+    const a = nodes[m.a], b = nodes[m.b];
+    const d = distToSeg(px, py, sx(a.x), sy(a.y), sx(b.x), sy(b.y));
+    if (d < bd) { bd = d; best = i; }
+  });
+  return best;
+}
+function localXY(e) { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
+
+cv.addEventListener("pointerdown", (e) => {
+  const [px, py] = localXY(e);
+  if (sim) { selected = pickMember(px, py, sim.nodes, sim.members); updatePanel(true); return; }
+  if (tool === "erase") {
+    const i = pickMember(px, py, design.nodes, design.members);
+    if (i >= 0) { pushUndo(); design.members.splice(i, 1); pruneNodes(design); saveDesign(); hover.member = -1; updatePanel(true); }
+    return;
+  }
+  const n = pickNode(px, py);
+  if (n < 0) return;
+  cv.setPointerCapture(e.pointerId);
+  drag = { from: n, to: null, valid: false };
+});
+
+cv.addEventListener("pointermove", (e) => {
+  const [px, py] = localXY(e);
+  pointerWorld = { x: wx(px), y: wy(py) };
+  if (sim) { hover.member = pickMember(px, py, sim.nodes, sim.members); updatePanel(); return; }
+  if (drag) {
+    const from = design.nodes[drag.from];
+    const snapNode = pickNode(px, py);
+    const to = snapNode >= 0 ? { x: design.nodes[snapNode].x, y: design.nodes[snapNode].y } : { x: Math.round(wx(px)), y: Math.round(wy(py)) };
+    const L = Math.hypot(to.x - from.x, to.y - from.y);
+    drag.to = to;
+    drag.valid = L > 0.5 && L <= MAXLEN + 1e-9 && (snapNode >= 0 || !inTerrain(to.x, to.y)) && to.y <= 7;
+    return;
+  }
+  hover.node = pickNode(px, py);
+  hover.member = hover.node >= 0 && tool !== "erase" ? -1 : pickMember(px, py, design.nodes, design.members);
+  updatePanel();
+});
+
+function endDrag() {
+  if (!drag) return;
+  if (drag.valid && drag.to) {
+    let j = design.nodes.findIndex((n) => Math.abs(n.x - drag.to.x) < 1e-6 && Math.abs(n.y - drag.to.y) < 1e-6);
+    pushUndo();
+    if (j < 0) { design.nodes.push({ x: drag.to.x, y: drag.to.y }); j = design.nodes.length - 1; }
+    const a = drag.from, b = j;
+    const dup = design.members.findIndex((m) => (m.a === a && m.b === b) || (m.a === b && m.b === a));
+    if (dup >= 0) design.members[dup].mat = tool; // redraw over a member to change its material
+    else design.members.push({ a, b, mat: tool });
+    saveDesign();
+  }
+  drag = null;
+  updatePanel(true);
+}
+cv.addEventListener("pointerup", endDrag);
+cv.addEventListener("pointercancel", () => { drag = null; });
+cv.addEventListener("pointerleave", () => { if (!drag) { hover = { node: -1, member: -1 }; updatePanel(true); } });
+
+function setTool(t) { if (sim) return; tool = t; updatePanel(true); }
+document.querySelectorAll(".tool").forEach((b) => b.addEventListener("click", () => setTool(b.dataset.tool)));
+
+function toggleRun() {
+  if (sim) { sim = null; selected = -1; }
+  else { hover = { node: -1, member: -1 }; startSim(); }
+  updatePanel(true);
+}
+$("run").addEventListener("click", toggleRun);
+$("undo").addEventListener("click", () => { if (sim || !undoStack.length) return; design = JSON.parse(undoStack.pop()); saveDesign(); updatePanel(true); });
+$("example").addEventListener("click", () => { if (sim) return; pushUndo(); design = exampleDesign(span); saveDesign(); updatePanel(true); });
+$("clear").addEventListener("click", () => { if (sim) return; pushUndo(); design = emptyDesign(span); saveDesign(); updatePanel(true); });
+$("slow").addEventListener("change", (e) => { slow = e.target.checked; });
+$("span").addEventListener("change", (e) => {
+  sim = null; span = +e.target.value; design = loadDesign(span); undoStack = []; layoutView(); updatePanel(true);
+});
+$("vehicle").addEventListener("change", (e) => { vehicleKey = e.target.value; if (sim) startSim(); updatePanel(true); });
+
+window.addEventListener("keydown", (e) => {
+  if (e.target.tagName === "SELECT" || e.target.tagName === "INPUT") return;
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); $("undo").click(); return; }
+  if (e.key === " ") { e.preventDefault(); toggleRun(); return; }
+  const map = { "1": "road", "2": "wood", "3": "steel", e: "erase", E: "erase" };
+  if (map[e.key]) setTool(map[e.key]);
+});
+
+// ---------- Loop ----------
+let acc = 0, last = performance.now();
+function frame(now) {
+  let dt = Math.min(0.1, (now - last) / 1000); last = now;
+  if (sim) {
+    acc += dt * (slow ? 0.25 : 1);
+    let n = 0;
+    while (acc >= DT && n < 4) { stepSim(DT); acc -= DT; n++; }
+    if (n === 4) acc = 0;
+    updatePanel();
+  }
+  draw();
+  requestAnimationFrame(frame);
+}
+
+function init() {
+  readTokens();
+  design = loadDesign(span);
+  layoutView();
+  updatePanel(true);
+  new ResizeObserver(() => layoutView()).observe(stage);
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", readTokens);
+  new MutationObserver(readTokens).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  if (document.fonts) document.fonts.ready.then(readTokens);
+  requestAnimationFrame(frame);
+}
+init();
+</script>
+<!-- BODY-END -->
+</html>
