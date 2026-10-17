@@ -129,7 +129,7 @@
     const c = CHAPTERS[chapIdx];
     stopDemo();
     const cellBtn = c.cell ? `<button class="btn primary" id="cellAct">${c.cell === "tour" ? "Start the tour" : c.cell === "pendant" ? "Open the pendant in Practice" : "Show in the cell"}</button>` : "";
-    const weldBtn = ["job", "gmaw", "arcinst", "handshake"].includes(c.id) ? `<button class="btn" id="demoWeld">Watch a full automatic weld</button>` : "";
+    const weldBtn = ["job", "cecspec", "gmaw", "arcinst", "handshake"].includes(c.id) ? `<button class="btn" id="demoWeld">Watch a full automatic weld</button>` : "";
     $("chapter").innerHTML = `
       <div class="eyebrow">${esc(c.part)} · Chapter ${chapIdx + 1} of ${CHAPTERS.length}${read.has(c.id) ? ' · <span class="ok">checked</span>' : ""}</div>
       <h2>${esc(c.title)}</h2><p class="lead">${esc(c.lead)}</p>
@@ -177,6 +177,7 @@
     if (a === "axes") { demo = { kind: "axes", t: 0, q0: world.q.slice() }; caption("Each axis in turn: J1 waist, J2 shoulder, J3 elbow, J4 roll, J5 bend, J6 flange"); return; }
     if (a === "frames") { demo = { kind: "frames", t: 0 }; scene.showFrames(true); return; }
     if (a === "weldview") { scene.view("weld"); return; }
+    if (a === "joint") { scene.view("joint"); caption("The CEC J-groove: click Weld view or press Watch a full automatic weld to see it filled"); return; }
     if (a === "plc") { scene.focus("plc", 2.2); scene.highlight("plc"); setTimeout(() => { if (mode !== "learn") return; }, 0); return; }
     if (a.startsWith("focus:")) { const id = a.slice(6); scene.focus(id, id === "fence" ? 5 : 2.0); scene.highlight(id); if (!quiet) showComp(id); }
   }
@@ -288,6 +289,7 @@
   $("lapse").addEventListener("change", (e) => { world.timeLapse = +e.target.value; });
   $("vIso").addEventListener("click", () => scene.ok && scene.view("iso"));
   $("vWeld").addEventListener("click", () => scene.ok && scene.view("weld"));
+  $("vJoint").addEventListener("click", () => scene.ok && scene.view("joint"));
   $("vFrames").addEventListener("click", (e) => { const on = e.currentTarget.getAttribute("aria-pressed") !== "true"; e.currentTarget.setAttribute("aria-pressed", String(on)); scene.ok && scene.showFrames(on); });
   $("explainKeys").addEventListener("change", (e) => { tp.explain = e.target.checked; $("explain").innerHTML = tp.explain ? "Click any key on the pendant to see what it does." : ""; });
   window.addEventListener("keydown", (e) => { if (e.key === "Shift") tp.shiftKey = true; });

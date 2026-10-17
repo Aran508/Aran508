@@ -32,14 +32,21 @@ Open `robot-lab/index.html` in a browser. It loads three.js from cdnjs. Everythi
 
 ## Weld Cell Trainer (`robot-lab/weld.html`)
 
-A FANUC ArcTool-style welding cell that welds the cap end cover onto a hydraulic cylinder barrel while a servo positioner turns the part. It has three modes.
+A FANUC ArcTool-style welding cell that welds the cap end cover (CEC) onto a hydraulic cylinder tube while a servo positioner turns the part. The part follows the customer drawing:
 
-**Learn**: 22 chapters from zero to specialist. Each has an animation, a 3D demo in the cell, and a knowledge check.
+- **Tube:** Ø65 × Ø50 bore × 203 long, with a Ø51 counterbore that takes the CEC spigot.
+- **CEC:** clevis with an R19 eye, 31.75 wide, and a Ø19.6 pin hole. The fixture locates on that pin.
+- **Joint:** a J-groove on the CEC (R3 root, centre 3.1 from the tube face, 4° wall) filled with a **4 mm groove weld all round**.
+- **Weld:** one pass of Ø1.2 ER70S-6 in 82Ar/18CO₂ at 24 V, 220 A, 7 m/min wire and 5 mm/s travel. The part turns 380°, which gives a 20° overlap.
+
+It has three modes.
+
+**Learn**: 23 chapters from zero to specialist. Each has an animation, a 3D demo in the cell, and a knowledge check.
 - *The machine:* cell tour (click any component), servo motor, reducer, encoder and brake, the controller cabinet, and every teach pendant key.
 - *Moving the robot:* T1/T2/AUTO, the 3-position enabling switch, E-stops, JOINT/WORLD/TOOL/USER, the jogging procedure, and the TCP.
 - *Signals:* DI/DO/UI/UO/RI/RO/AI/GO, what a PLC is (scan cycle, ladder logic), and the robot–PLC handshake.
 - *Programs:* every TP symbol (`J L C P[] PR[] R[] : ; () % mm/sec FINE CNT ! LBL JMP`), motion, and logic.
-- *Welding:* GMAW physics, torch angles and lead on a rotating part, the cylinder job, and Arc Start/End with dry runs.
+- *Welding:* GMAW physics, torch angles and lead on a rotating part, the cylinder job, reading the drawing (Detail A J-groove and the WPS), and Arc Start/End with dry runs.
 - *Specialist:* troubleshooting method, alarm reference, weld defects, and maintenance.
 
 **Practice**: an iPendant replica that works:
@@ -59,6 +66,8 @@ A FANUC ArcTool-style welding cell that welds the cap end cover onto a hydraulic
 - a light-curtain trip (SRVO-007)
 
 You diagnose each one with the pendant screens, I/O, the PLC ladder and the weld report, then choose the root cause and apply the fix.
+
+**Pause:** anything that runs on its own can be frozen with **Pause** on the 3D view or the **P** key, and cancelled with **Stop**. That covers the cell tour, the axis and frame demos, the lesson animations and the automatic weld. Robot Academy has the same Pause/Resume on its 3D view and next to *Watch it run*.
 
 Alarm codes follow FANUC naming. Texts vary by controller version, so use your controller's manuals for real work.
 

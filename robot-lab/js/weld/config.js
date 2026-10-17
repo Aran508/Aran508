@@ -6,10 +6,20 @@ const WELD = (() => {
   const T = (x, y, z) => ({ type: "pose", p: [x, y, z], R: Mat.I() });
   const torch = Pose.mul(Pose.mul(T(0, 0, 180), { type: "pose", p: [0, 0, 0], R: Mat.ry(30 * DEG) }), T(0, 0, 150));
   const axisC = [820, 0, 700];
-  const R = 60, seamY = -300;
+  // Part to the customer drawing: tube Ø65 OD x Ø50 bore x 203 long, cap end cover (CEC) with clevis.
+  // Joint: the tube end is counterbored Ø51 and the CEC spigot sits in it. The CEC carries a J-groove:
+  // flat root 4 mm below the OD, R3 root radius whose centre is 3.1 from the tube face, 4° wall. 4 mm groove weld all round.
+  const R = 32.5, seamY = -460;
+  const drawing = {
+    tubeOD: 65, bore: 50, tubeL: 203, overall: 244, cecL: 41,
+    counterbore: 51, counterboreDepth: 3, // depth not dimensioned on the drawing: assumed
+    groove: { type: "J", depth: 4, rootR: 3, centre: 3.1, width: 3.1 + 3 + Math.tan(4 * DEG), wallDeg: 4 },
+    cecBody: 20.64, pinFromSeam: 41, eyeR: 19, clevisW: 31.75, pinHole: 19.6,
+    weldSize: 4, overlapDeg: 20,
+  };
   const lead = -10; // torch sits 10 deg before top dead centre, so the puddle freezes as it rolls over the top
   const start = [axisC[0] + R * Math.sin(lead * DEG), seamY, axisC[2] + R * Math.cos(lead * DEG)];
-  const ori = [-170, 10, 180]; // W, P, R: torch tipped 10 deg toward the thicker cap, 10 deg push angle
+  const ori = [-170, 10, 180]; // W, P, R: torch tipped 10 deg toward the J-prepped CEC, 10 deg push angle
   const Rw = Rot.fromFixedXYZ(...ori);
   const zt = Mat.col(Rw, 2);
   const back = (d) => Vec.sub(start, Vec.scale(zt, d));
@@ -22,15 +32,17 @@ const WELD = (() => {
       { name: "World (UF 0)", pose: Pose.identity() },
       { name: "Positioner (UF 1)", pose: T(axisC[0], axisC[1], axisC[2]) },
     ],
-    axisC, R, seamY, tubeY1: 300, capT: 45, lugL: 90,
+    axisC, R, seamY, tubeY1: seamY + drawing.tubeL, capT: drawing.cecBody, bore: drawing.bore / 2, drawing,
+    weldTurn: 360 + drawing.overlapDeg,
     leadDeg: lead,
     homeQ: [0, -25, -15, 0, 70, 0],
     tLimit: 250, // mm/s in T1
     schedules: [
       null,
-      { name: "Root and fill", volts: 21.5, amps: 185, wfs: 8.5, speed: 9.0, gas: 15 },
-      { name: "Cap pass", volts: 23.0, amps: 215, wfs: 10.0, speed: 11.0, gas: 15 },
-      { name: "Tack weld", volts: 20.0, amps: 160, wfs: 7.0, speed: 8.0, gas: 15 },
+      // Ø1.2 mm ER70S-6 wire, 82% Ar / 18% CO2, CTWD 15 mm. One pass fills the J-groove (~22 mm²) plus a ~1 mm crown.
+      { name: "CEC J-groove 4 mm", volts: 24.0, amps: 220, wfs: 7.0, speed: 5.0, gas: 15 },
+      { name: "Cosmetic cap pass", volts: 22.5, amps: 190, wfs: 5.5, speed: 6.0, gas: 15 },
+      { name: "Tack weld", volts: 20.0, amps: 160, wfs: 6.5, speed: 6.0, gas: 15 },
     ],
     weaves: [null, { name: "Sine", amp: 2.5, freq: 1.5 }],
     pts: {
@@ -121,9 +133,9 @@ const TPStore = (() => {
   function defaults() {
     return [
       {
-        name: "CYL_WELD", comment: "Cap to tube weld",
+        name: "CYL_WELD", comment: "CEC to tube weld",
         lines: [
-          "!Hydraulic cylinder: cap end to tube",
+          "!CEC to tube: 4mm J-groove weld",
           "UFRAME_NUM=0",
           "UTOOL_NUM=1",
           "DO[1:IN CYCLE]=ON",
@@ -133,7 +145,7 @@ const TPStore = (() => {
           "J P[2:APPROACH] 40% CNT50",
           "L P[3:WELD START] 150mm/sec FINE",
           "Arc Start[1]",
-          "!Positioner turns 370 deg under the torch",
+          `!Part turns ${WELD.weldTurn} deg, ${WELD.drawing.overlapDeg} deg overlap`,
           "L P[4:WELD END] WELD_SPEED FINE",
           "Arc End[1]",
           "L P[5:RETRACT] 150mm/sec FINE",
@@ -145,8 +157,8 @@ const TPStore = (() => {
           1: { comment: "HOME", joint: WELD.homeQ.slice(), uf: 0, ut: 1, e1: 0 },
           2: cart(WELD.pts.approach, { comment: "APPROACH", e1: 0 }),
           3: cart(WELD.pts.start, { comment: "WELD START", e1: 0 }),
-          4: cart(WELD.pts.start, { comment: "WELD END", e1: 370 }),
-          5: cart(WELD.pts.retract, { comment: "RETRACT", e1: 370 }),
+          4: cart(WELD.pts.start, { comment: "WELD END", e1: WELD.weldTurn }),
+          5: cart(WELD.pts.retract, { comment: "RETRACT", e1: WELD.weldTurn }),
         },
       },
       {

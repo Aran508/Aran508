@@ -35,38 +35,52 @@ class WeldScene extends Cell3D {
     const gnd = this.groupAt("ground", C[0] + 150, -600, C[2] - 140);
     add(gnd, this.at(this.boxMesh(50, 60, 40, this.mat(0xb8743b, { metalness: 0.7, roughness: 0.3 })), 0, 0, 0));
     add(gnd, this.at(this.cylZ(10, 180, dark), 20, 0, -110));
-    const tail = this.groupAt("tailstock", 0, 0, 0, [C[0], 520, C[2]]);
-    add(tail, this.at(this.boxMesh(240, 200, C[2] - 60, posMat), C[0], 560, (C[2] - 60) / 2 + 60));
-    add(tail, this.at(this.cylY(70, 140, steel), C[0], 520, C[2]));
+    const tail = this.groupAt("tailstock", 0, 0, 0, [C[0], WELD.tubeY1 + 200, C[2]]);
+    // the quill's centre enters the Ø50 bore at the gland end of the tube
+    const ty = WELD.tubeY1 + 18;
+    add(tail, this.at(this.boxMesh(240, 200, C[2] - 60, posMat), C[0], ty + 230, (C[2] - 60) / 2 + 60));
+    add(tail, this.at(this.cylY(70, 140, steel), C[0], ty + 190, C[2]));
     this.quill = new THREE.Group(); tail.add(this.quill);
-    add(this.quill, this.at(this.cylY(30, 120, steel), C[0], 410, C[2]));
-    const cone = new THREE.Mesh(new THREE.ConeGeometry(30 * S, 50 * S, 24), steel); cone.rotation.x = Math.PI; cone.position.set(C[0] * S, 330 * S, C[2] * S); cone.castShadow = true;
+    add(this.quill, this.at(this.cylY(30, 120, steel), C[0], ty + 80, C[2]));
+    const cone = new THREE.Mesh(new THREE.ConeGeometry(30 * S, 50 * S, 24), steel); cone.rotation.x = Math.PI; cone.position.set(C[0] * S, (ty + 5) * S, C[2] * S); cone.castShadow = true;
     add(this.quill, cone);
     this.sensorLamp = this.mat(0x333a40, {});
-    add(tail, this.at(this.boxMesh(26, 40, 26, this.sensorLamp), C[0] + 85, 500, C[2] + 60));
+    add(tail, this.at(this.boxMesh(26, 40, 26, this.sensorLamp), C[0] + 85, ty + 170, C[2] + 60));
 
     // ---- rotating faceplate + part
     this.rotor = new THREE.Group(); this.rotor.position.set(C[0] * S, C[1] * S, C[2] * S); this.scene.add(this.rotor);
     this.comp("faceplate", this.rotor, [C[0], -560, C[2]]);
-    add(this.rotor, this.at(this.cylY(170, 30, this.mat(0x5d6b78, { metalness: 0.4 })), 0, -560, 0));
-    for (let i = 0; i < 3; i++) {
-      const jaw = this.at(this.boxMesh(40, 60, 50, steel), 0, -520, 0);
-      const a = i * (2 * Math.PI / 3);
-      jaw.position.x = Math.sin(a) * 0.06; jaw.position.z = Math.cos(a) * 0.06; jaw.rotation.y = a;
-      this.rotor.add(jaw);
-    }
+    add(this.rotor, this.at(this.cylY(120, 30, this.mat(0x5d6b78, { metalness: 0.4 })), 0, -560, 0));
+    // sy is the tube end face; the groove (3.1 wide) is centred on WELD.seamY, where the wire aims
+    const D = WELD.drawing, sy = WELD.seamY + D.groove.width / 2, pinY = sy - D.pinFromSeam;
+    // clevis fixture: a fork on the faceplate and a locating pin through the CEC's Ø19.6 hole
+    for (const sx of [-1, 1]) add(this.rotor, this.at(this.boxMesh(10, -545 - pinY + 26, 58, steel), sx * (D.clevisW / 2 + 7), (-545 + pinY - 26) / 2, 0));
+    const pin = this.cylY(D.pinHole / 2 - 0.3, D.clevisW + 34, steel, 20); pin.rotation.z = Math.PI / 2; pin.position.set(0, pinY * S, 0); this.rotor.add(pin);
     this.part = new THREE.Group(); this.rotor.add(this.part);
-    this.comp("part", this.part, [C[0], 0, C[2]]);
-    const tubeMat = this.mat(0xb4bcc3, { metalness: 0.25, roughness: 0.45 });
-    const capMat = this.mat(0x98a1a9, { metalness: 0.25, roughness: 0.5 });
-    const tube = this.cylY(WELD.R, WELD.tubeY1 - WELD.seamY - 4, tubeMat, 48); tube.position.set(0, (WELD.seamY + WELD.tubeY1 + 4) / 2 * S, 0); this.part.add(tube);
-    const cap = this.cylY(WELD.R + 6, WELD.capT - 4, capMat, 48); cap.position.set(0, (WELD.seamY - WELD.capT / 2 - 2) * S, 0); this.part.add(cap);
-    const lug = this.at(this.boxMesh(70, WELD.lugL, 80, capMat), 0, WELD.seamY - WELD.capT - WELD.lugL / 2, 0); this.part.add(lug);
-    const eye = new THREE.Mesh(new THREE.TorusGeometry(26 * S, 9 * S, 10, 24), capMat); eye.position.set(0, (WELD.seamY - WELD.capT - WELD.lugL + 10) * S, 0); eye.rotation.y = Math.PI / 2; this.part.add(eye);
-    // V-groove at the joint
-    const groove = new THREE.Mesh(new THREE.TorusGeometry(WELD.R * S, 2.6 * S, 8, 72), this.mat(0x2a2d30, { roughness: 0.9 }));
-    groove.rotation.x = Math.PI / 2; groove.position.y = WELD.seamY * S; this.part.add(groove);
-    this.groove = groove;
+    this.comp("part", this.part, [C[0], sy + 60, C[2]]);
+    const tubeMat = this.mat(0xb4bcc3, { metalness: 0.25, roughness: 0.45, side: THREE.DoubleSide });
+    const capMat = this.mat(0x98a1a9, { metalness: 0.25, roughness: 0.5, side: THREE.DoubleSide });
+    const lathe = (pts, mat) => { const g = new THREE.LatheGeometry(pts.map(([r, y]) => new THREE.Vector2(r * S, y * S)), 64); const m = new THREE.Mesh(g, mat); m.castShadow = m.receiveShadow = true; return m; };
+    const Ro = WELD.R, Rb = WELD.bore, Rc = D.counterbore / 2, cd = D.counterboreDepth, g = D.groove;
+    // tube Ø65 x Ø50, square end with the Ø51 x 3.1 counterbore
+    this.part.add(lathe([[Rc, sy], [Ro, sy], [Ro, WELD.tubeY1], [Rb, WELD.tubeY1], [Rb, sy + cd], [Rc, sy + cd], [Rc, sy]], tubeMat));
+    // CEC: spigot in the counterbore, root land on the tube face, then the J-groove: flat root,
+    // R3 radius (centre 3.1 from the tube face) and a 4° wall up to the OD
+    const rootR = Ro - g.depth, yc = sy - g.centre;
+    const cec = [[0, sy + cd - 0.2], [Rc - 0.2, sy + cd - 0.2], [Rc - 0.2, sy], [rootR, sy], [rootR, yc]];
+    for (let i = 1; i <= 8; i++) { const t = (i / 8) * Math.PI / 2; cec.push([rootR + g.rootR - g.rootR * Math.cos(t), yc - g.rootR * Math.sin(t)]); }
+    cec.push([Ro, sy - g.width], [Ro, sy - D.cecBody + 1], [Ro - 1, sy - D.cecBody], [0, sy - D.cecBody]);
+    this.part.add(lathe(cec, capMat));
+    // dark root of the open groove, so it reads before welding
+    const groove = lathe([[rootR + 0.25, sy - 0.1], [rootR + 0.25, yc - 1.5]], this.mat(0x2a2d30, { roughness: 0.9, side: THREE.DoubleSide }));
+    this.part.add(groove); this.groove = groove;
+    // clevis tongue (31.75 wide, R19 eye) with the Ø19.6 pin hole
+    const tongue = this.at(this.boxMesh(D.clevisW, D.pinFromSeam - D.cecBody, D.eyeR * 2, capMat), 0, sy - (D.cecBody + D.pinFromSeam) / 2, 0); this.part.add(tongue);
+    const eye = this.cylY(D.eyeR, D.clevisW, capMat, 32); eye.rotation.z = Math.PI / 2; eye.position.set(0, pinY * S, 0); this.part.add(eye);
+    // gland end: M54x2 thread stub and a service port boss 67 mm from the CEC end of the tube
+    const thread = lathe([[Rb, WELD.tubeY1], [27, WELD.tubeY1], [27, WELD.tubeY1 + 18], [Rb, WELD.tubeY1 + 18]], this.mat(0x8d969e, { metalness: 0.4, roughness: 0.35, side: THREE.DoubleSide }));
+    this.part.add(thread);
+    const boss = this.at(this.cylZ(9, 10, capMat), 0, sy + 67, Ro + 4); this.part.add(boss);
     // weld bead as instanced spheres in part coordinates
     this.beadMax = 1200;
     this.bead = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 10, 6), new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0.6, roughness: 0.35 }), this.beadMax);
@@ -257,7 +271,7 @@ class WeldScene extends Cell3D {
     if (n < start) this.bead.count = 0;
     for (let i = this.bead.count; i < n; i++) {
       const b = beads[i];
-      const r = (WELD.R + 1.5) * S, a = b.ang * DEG, w = b.width / 2 * S;
+      const r = (WELD.R - 0.8) * S, a = b.ang * DEG, w = b.width / 2 * S;
       m.compose(new THREE.Vector3(Math.sin(a) * r, (WELD.seamY + b.lat) * S, Math.cos(a) * r), new THREE.Quaternion(), new THREE.Vector3(w, w * (b.grade === "fast" ? 0.6 : 1), w * 0.7));
       this.bead.setMatrixAt(i, m);
       this.bead.setColorAt(i, c.set(cols[b.grade] || 0xcccccc));
@@ -324,7 +338,8 @@ class WeldScene extends Cell3D {
   }
   view(name) {
     if (name === "iso") { this.orbit = { target: new THREE.Vector3(0.45, -0.1, 0.65), dist: 4.4, az: -0.75, el: 0.38 }; return; }
-    if (name === "weld") { this.orbit = { target: new THREE.Vector3(0.79, -0.3, 0.78), dist: 1.05, az: -0.55, el: 0.5 }; return; }
+    if (name === "weld") { const C = WELD.axisC; this.orbit = { target: new THREE.Vector3(C[0] * S - 0.02, (WELD.seamY + 20) * S, (C[2] + 40) * S), dist: 0.6, az: 0.35, el: 0.55 }; return; }
+    if (name === "joint") { const C = WELD.axisC; this.orbit = { target: new THREE.Vector3(C[0] * S, (WELD.seamY + 10) * S, C[2] * S), dist: 0.26, az: 0.75, el: 0.5 }; return; }
     super.view(name);
   }
 }

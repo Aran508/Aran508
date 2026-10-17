@@ -117,7 +117,7 @@ pre.code { font: 12px/1.5 var(--f-mono); background: var(--panel-2); border: 1px
 .play button.pp { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); min-width: 96px; }
 .play button.pp.resume { background: var(--ok); border-color: var(--ok); }
 .play #playInfo { font-size: 12px; color: var(--muted); padding-right: 6px; }
-#pausedTag { left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 10px 16px; font-size: 15px; font-weight: 700; letter-spacing: .03em; }
+#pausedTag { left: 50%; top: 52px; transform: translateX(-50%); white-space: nowrap; padding: 10px 16px; font-size: 15px; font-weight: 700; letter-spacing: .03em; }
 .animbox { position: relative; }
 .animbox .animpp { position: absolute; right: 8px; bottom: 8px; font: inherit; font-size: 12px; font-weight: 600; border: 1px solid var(--line); background: var(--hud); color: var(--ink); border-radius: 5px; padding: 4px 10px; cursor: pointer; }
 .vtools { right: 10px; bottom: 10px; display: flex; gap: 4px; padding: 4px; }
@@ -299,7 +299,7 @@ dl.kv dt { color: var(--muted); } dl.kv dd { margin: 0; font-family: var(--f-mon
         <div class="hud" id="comp" hidden></div>
         <div class="hud play" id="playBar"><button id="pauseBtn" class="pp" aria-label="Pause everything that is running">❚❚ Pause</button><button id="stopBtn" aria-label="Stop the demo or program">■ Stop</button><span id="playInfo"></span></div>
         <div class="hud" id="pausedTag" hidden>PAUSED — press Resume (or P) to continue</div>
-        <div class="hud vtools"><button id="vIso">Cell view</button><button id="vWeld">Weld view</button><button id="vFrames" aria-pressed="true">Frames</button></div>
+        <div class="hud vtools"><button id="vIso">Cell view</button><button id="vWeld">Weld view</button><button id="vJoint">Joint</button><button id="vFrames" aria-pressed="true">Frames</button></div>
       </div>
       <div class="ops">
         <div class="opgrp"><span>Controller</span>

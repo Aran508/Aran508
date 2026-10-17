@@ -358,7 +358,66 @@ const ANIMS = (() => {
     label(ctx, "Joint preparation (section)", dx + 80, dy - 50, C, { size: 11.5, w: 600 });
     ctx.fillStyle = "#a0a8af"; ctx.beginPath(); ctx.moveTo(dx, dy - 30); ctx.lineTo(dx + 70, dy - 30); ctx.lineTo(dx + 80, dy); ctx.lineTo(dx + 76, dy + 20); ctx.lineTo(dx, dy + 20); ctx.closePath(); ctx.fill();
     ctx.fillStyle = "#b8c0c7"; ctx.beginPath(); ctx.moveTo(dx + 170, dy - 30); ctx.lineTo(dx + 100, dy - 30); ctx.lineTo(dx + 88, dy); ctx.lineTo(dx + 84, dy + 20); ctx.lineTo(dx + 170, dy + 20); ctx.closePath(); ctx.fill();
-    label(ctx, "30–35° bevel, 1–2 mm root face, 0–2 mm gap", dx + 85, dy + 38, C, { size: 10.5, color: C.muted });
+    label(ctx, "J-groove on the CEC, R3 root, 4 mm weld", dx + 85, dy + 38, C, { size: 10.5, color: C.muted });
+  };
+
+  // ---------- CEC to tube joint, Detail A of the drawing ----------
+  A.cecjoint = (ctx, t, W, H, C) => {
+    const D = WELD.drawing, g = D.groove, k = 21, x0 = 330, yb = 330;
+    const X = (y) => x0 + y * k, Y = (r) => yb - (r - 23) * k;
+    const face = g.width / 2, cb = D.counterboreDepth, Ro = WELD.R, Rc = D.counterbore / 2, root = Ro - g.depth;
+    const poly = (pts, fill) => { ctx.beginPath(); pts.forEach(([r, y], i) => (i ? ctx.lineTo(X(y), Y(r)) : ctx.moveTo(X(y), Y(r)))); ctx.closePath(); ctx.fillStyle = fill; ctx.fill(); ctx.strokeStyle = C.ink; ctx.lineWidth = 1.3; ctx.stroke(); };
+    // J profile from the top of the wall down to the root: wall, R3 arc (centre 3.1 from the tube face), flat root
+    const yc = face - g.centre, jarc = [[Ro, face - g.width]];
+    for (let i = 8; i >= 0; i--) { const a = (i / 8) * Math.PI / 2; jarc.push([root + g.rootR - g.rootR * Math.cos(a), yc - g.rootR * Math.sin(a)]); }
+    jarc.push([root, face]);
+    // section: CEC (left) and tube (right), upper wall only
+    poly([[23, -14], [Ro, -14], ...jarc, [Rc - 0.1, face], [Rc - 0.1, face + cb], [23, face + cb]], "#98a1a9");
+    poly([[Rc, face], [Ro, face], [Ro, 14], [WELD.bore, 14], [WELD.bore, face + cb], [Rc, face + cb]], "#b8c0c7");
+    label(ctx, "CEC", X(-9), Y(27), C, { size: 13, w: 700 });
+    label(ctx, "TUBE", X(9), Y(29), C, { size: 13, w: 700 });
+    // bead grows in the groove, one pass
+    const cyc = t % 9, f = Math.min(1, Math.max(0, (cyc - 1) / 5.5));
+    const level = root + f * (g.depth + 1.2);
+    if (f > 0) {
+      ctx.save(); ctx.beginPath(); ctx.rect(0, Y(level), W, H); ctx.clip();
+      // fused zone: the groove plus ~0.4 mm melted into both faces, topped by a crown
+      ctx.beginPath();
+      ctx.moveTo(X(face + 1.1), Y(Ro));
+      ctx.quadraticCurveTo(X(face - g.width / 2), Y(Ro + 2.4), X(face - g.width - 0.9), Y(Ro));
+      jarc.forEach(([r, y]) => ctx.lineTo(X(y - 0.4), Y(r - 0.3)));
+      ctx.lineTo(X(face + 0.5), Y(root - 0.5));
+      ctx.lineTo(X(face + 0.5), Y(Ro - 0.8));
+      ctx.closePath();
+      ctx.fillStyle = "#c9a76a"; ctx.fill(); ctx.strokeStyle = "#8a6a35"; ctx.lineWidth = 1; ctx.stroke();
+      ctx.restore();
+    }
+    // torch, 10° toward the J-prepped CEC
+    const tipY = Y(Math.min(Ro + 0.6, level) + 0.8), tipX = X(face - g.width / 2);
+    ctx.save(); ctx.translate(tipX, tipY); ctx.rotate(-10 * Math.PI / 180);
+    ctx.fillStyle = "#3b3f44"; ctx.fillRect(-15, -140, 30, 92); ctx.fillStyle = "#c08a3e"; ctx.fillRect(-6, -48, 12, 22);
+    ctx.strokeStyle = "#9aa3ab"; ctx.lineWidth = 2.4; ctx.beginPath(); ctx.moveTo(0, -26); ctx.lineTo(0, -3); ctx.stroke();
+    ctx.restore();
+    if (f > 0 && f < 1) { const gl = ctx.createRadialGradient(tipX, tipY, 0, tipX, tipY, 26); gl.addColorStop(0, "rgba(255,255,255,0.95)"); gl.addColorStop(0.4, "rgba(160,200,255,0.6)"); gl.addColorStop(1, "rgba(160,200,255,0)"); ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(tipX, tipY, 26, 0, TAU); ctx.fill(); }
+    // dimensions from the drawing
+    ctx.strokeStyle = C.accent; ctx.fillStyle = C.accent; ctx.lineWidth = 1.2;
+    const dimV = (x, r1, r2, txt) => { arrow(ctx, x, Y((r1 + r2) / 2), x, Y(r2), C, C.accent, 1.2); arrow(ctx, x, Y((r1 + r2) / 2), x, Y(r1), C, C.accent, 1.2); label(ctx, txt, x - 8, Y((r1 + r2) / 2), C, { size: 12, w: 700, color: C.accent, align: "right" }); };
+    dimV(X(-10), root, Ro, `${g.depth}`);
+    ctx.setLineDash([3, 3]); ctx.strokeStyle = C.accent; ctx.beginPath(); ctx.moveTo(X(-10) - 4, Y(root)); ctx.lineTo(X(yc), Y(root)); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(X(yc), Y(root + g.rootR)); ctx.lineTo(X(yc), Y(root - 2.6)); ctx.moveTo(X(face), Y(root)); ctx.lineTo(X(face), Y(root - 2.6)); ctx.stroke(); ctx.setLineDash([]);
+    const dy3 = Y(root - 2.3); arrow(ctx, X(yc) - 30, dy3, X(yc), dy3, C, C.accent, 1.2); arrow(ctx, X(face) + 30, dy3, X(face), dy3, C, C.accent, 1.2);
+    label(ctx, `${g.centre}`, X(face) + 34, dy3, C, { size: 12, w: 700, color: C.accent, align: "left" });
+    ctx.fillStyle = C.accent; ctx.beginPath(); ctx.arc(X(yc), Y(root + g.rootR), 2.5, 0, TAU); ctx.fill();
+    const ra = Math.PI * 0.75; arrow(ctx, X(yc), Y(root + g.rootR), X(yc + g.rootR * Math.sin(-ra) * -1 * 0 - g.rootR * 0.7071), Y(root + g.rootR - g.rootR * 0.7071), C, C.accent, 1.2);
+    label(ctx, `R${g.rootR}`, X(yc) + 8, Y(root + g.rootR) - 10, C, { size: 12, w: 700, color: C.accent, align: "left" });
+    label(ctx, `Ø${D.counterbore} × ${cb} counterbore`, X(9), Y(23.4), C, { size: 11, color: C.muted });
+    dimV(X(13), WELD.bore, Ro, `wall ${(Ro - WELD.bore).toFixed(1)}`);
+    label(ctx, `Detail A · CEC J-groove · ${D.weldSize} mm weld all round`, 16, 20, C, { size: 13, w: 700, align: "left" });
+    label(ctx, `Tube Ø${D.tubeOD} OD × Ø${D.bore} bore × ${D.tubeL}`, 16, 40, C, { size: 11.5, color: C.muted, align: "left" });
+    const s1 = WELD.schedules[1];
+    label(ctx, "1 pass · Ø1.2 ER70S-6 · 82Ar/18CO2", W - 14, 20, C, { size: 11.5, w: 600, align: "right" });
+    label(ctx, `${s1.volts} V · ${s1.amps} A · ${s1.wfs} m/min · ${s1.speed} mm/s`, W - 14, 38, C, { size: 11.5, align: "right", mono: true });
+    label(ctx, `Part turns ${WELD.weldTurn}° (${D.overlapDeg}° overlap)`, W - 14, 56, C, { size: 11.5, align: "right", color: C.muted });
   };
 
   // ---------- weld defects ----------

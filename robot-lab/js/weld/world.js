@@ -113,7 +113,7 @@ class WeldWorld {
     const local = Pose.mul(Pose.inv(this.partPose(ctlE1)), tcp).p;
     const rad = Math.hypot(local[0], local[2]);
     const onPart = local[1] > WELD.seamY - WELD.capT - 10 && local[1] < WELD.tubeY1;
-    const surf = local[1] < WELD.seamY ? WELD.R + 4 : WELD.R;
+    const surf = WELD.R; // CEC and tube share the Ø65 outside diameter
     if (onPart && rad < surf - 5) this.raise("SRVO-050", line, `Torch tip is ${Math.round(surf - rad)} mm inside the part.`);
     if (tcp.p[2] < 40) this.raise("SRVO-050", line, "Torch hit the floor.");
     this.q = q.slice(); this.e1 = ctlE1;
@@ -224,8 +224,8 @@ class WeldWorld {
     const d = Vec.len(Vec.sub(l, prev));
     const speed = d / Math.max(dt, 1e-6);
     this.arc.speed = speed;
-    // lay a bead sample every 1.6 mm of travel, interpolated along this frame's path
-    const STEP = 1.6;
+    // lay a bead sample every 0.8 mm of travel (about 1.4° on the Ø65 tube), interpolated along this frame's path
+    const STEP = 0.8;
     let s = STEP - this.part.travel;
     while (s <= d) {
       const pt = Vec.lerp(prev, l, d > 0 ? s / d : 1);
@@ -239,14 +239,15 @@ class WeldWorld {
     const rad = Math.hypot(l[0], l[2]);
     const lat = l[1] - WELD.seamY, stand = rad - WELD.R;
     const tol = this.weave ? 4.5 : 3;
+    const sc = WELD.schedules[this.arc.sched] || WELD.schedules[1];
     let grade = "good", note = "";
     if (this.faults.gasEmpty) { grade = "porosity"; note = "no shielding gas"; }
     else if (Math.abs(lat) > tol) { grade = "lof"; note = `${lat.toFixed(1)} mm off the seam`; }
     else if (Math.abs(lat) > tol / 2) { grade = "undercut"; note = `${lat.toFixed(1)} mm off centre`; }
-    else if (speed > 16) { grade = "fast"; note = `${speed.toFixed(1)} mm/s travel`; }
-    else if (speed < 4) { grade = "slow"; note = `${speed.toFixed(1)} mm/s travel${this.override < 0.99 ? ` (override ${Math.round(this.override * 100)}%: weld at 100%)` : ""}`; }
+    else if (speed > sc.speed * 1.6) { grade = "fast"; note = `${speed.toFixed(1)} mm/s travel (schedule ${sc.speed})`; }
+    else if (speed < sc.speed * 0.6) { grade = "slow"; note = `${speed.toFixed(1)} mm/s travel${this.override < 0.99 ? ` (override ${Math.round(this.override * 100)}%: weld at 100%)` : ""}`; }
     else if (Math.abs(stand) > 4) { grade = "stickout"; note = `${stand.toFixed(1)} mm stand-off error`; }
-    const b = { ang, lat, stand, speed, grade, note, width: this.weave ? 11 : 8 };
+    const b = { ang, lat, stand, speed, grade, note, width: this.weave ? 10 : 8 };
     this.part.beads.push(b);
     this.emit("bead", b);
   }
