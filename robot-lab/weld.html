@@ -51,7 +51,7 @@ code { font-family: var(--f-mono); font-size: 0.88em; background: var(--panel-2)
 .top a { color: var(--accent); font-size: 12.5px; }
 
 .main { min-height: 0; display: grid; gap: 10px; padding-block: 10px; padding-left: max(10px, env(safe-area-inset-left, 0px)); padding-right: max(10px, env(safe-area-inset-right, 0px)); }
-body[data-mode="learn"] .main { grid-template-columns: minmax(360px, 520px) minmax(0, 1fr); grid-template-areas: "learn stage"; }
+body[data-mode="learn"] .main { grid-template-columns: minmax(300px, 380px) minmax(0, 1fr); grid-template-areas: "learn stage"; }
 body[data-mode="learn"] #tpPane, body[data-mode="learn"] #side { display: none; }
 body:not([data-mode="learn"]) .main { grid-template-columns: 400px minmax(0, 1fr) 400px; grid-template-areas: "tp stage side"; }
 body:not([data-mode="learn"]) #learn { display: none; }

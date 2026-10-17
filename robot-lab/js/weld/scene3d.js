@@ -316,7 +316,11 @@ class WeldScene extends Cell3D {
       this.orbit.dist = a.from.d + (a.to.d - a.from.d) * e;
       if (a.k >= 1) this.anim = null;
     }
+    // keep the whole cell in frame when the view is tall and narrow (phones, side panels)
+    const asp = this.camera.aspect || 1.5, k = asp < 1.3 ? Math.min(2.2, 1.3 / asp) : 1;
+    const d = this.orbit.dist; this.orbit.dist = d * k;
     super.render(phase || 0);
+    this.orbit.dist = d;
   }
   view(name) {
     if (name === "iso") { this.orbit = { target: new THREE.Vector3(0.45, -0.1, 0.65), dist: 4.4, az: -0.75, el: 0.38 }; return; }
