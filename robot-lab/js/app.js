@@ -215,7 +215,7 @@
         <p class="lead">${esc(L.lead)}</p>
         ${L.body}
       </article>
-      <div class="lesson-actions"><button class="btn primary" id="watch">Watch it run</button><button class="btn" id="stepIt">Step through</button></div>
+      <div class="lesson-actions"><button class="btn primary" id="watch">Watch it run</button><button class="btn" id="stepIt">Step through</button><button class="btn" id="lessonPause" disabled>❚❚ Pause</button></div>
       <div class="box"><h3>Key points</h3><ul class="keypoints">${L.points.map((p) => `<li>${esc(p)}</li>`).join("")}</ul></div>
       <div class="box brandnote"><h3>${esc(lang.brand)} · ${esc(lang.lang)}</h3><div>${L.notes[brand]}</div></div>
       <div class="box"><h3>${esc(lang.lang)} syntax in this lesson</h3><table class="syntax">${rows}</table></div>
@@ -223,6 +223,8 @@
       <div class="lesson-nav"><button class="btn" id="prevL" ${lessonIdx === 0 ? "disabled" : ""}>Previous lesson</button><button class="btn" id="nextL" ${lessonIdx === LESSONS.length - 1 ? "disabled" : ""}>Next lesson</button></div>`;
     $("watch").addEventListener("click", () => { world.override = 1; app.syncOverride(); freshStart(false); });
     $("stepIt").addEventListener("click", () => freshStart(true));
+    $("lessonPause").addEventListener("click", togglePause);
+    updateControls();
     $("prevL").addEventListener("click", () => setLesson(lessonIdx - 1));
     $("nextL").addEventListener("click", () => setLesson(lessonIdx + 1));
     $("lesson").scrollTop = 0;
@@ -356,6 +358,13 @@
     const st = ctl.prog ? ctl.state : "idle";
     $("run").textContent = st === "paused" && !app.dirty ? "Resume" : "Run";
     $("pause").disabled = !(st === "running" || st === "waiting");
+    // separate pause/resume buttons on the 3D view and in the lesson
+    const canResume = st === "paused" && !app.dirty, active = st === "running" || st === "waiting";
+    for (const id of ["hudPause", "lessonPause"]) {
+      const b = $(id); if (!b) continue;
+      b.disabled = !(active || canResume);
+      b.textContent = canResume ? "▶ Resume" : "❚❚ Pause";
+    }
     const chip = $("stateChip");
     const map = { idle: ["Ready", ""], running: ["Running", "run"], waiting: ["Waiting", "wait"], paused: ["Paused", ""], done: ["Done", "done"], error: ["Fault", "err"] };
     const [t, c] = map[st] || map.idle;
@@ -364,6 +373,12 @@
   $("run").addEventListener("click", () => { if (ctl.prog && ctl.state === "paused" && !app.dirty) { ctl.start(); updateControls(); } else freshStart(false); });
   $("step").addEventListener("click", () => { if (ctl.prog && ctl.state === "paused" && !app.dirty) { ctl.step(); updateControls(); } else freshStart(true); });
   $("pause").addEventListener("click", () => { ctl.pause(); updateControls(); });
+  function togglePause() {
+    if (ctl.prog && ctl.state === "paused" && !app.dirty) ctl.start();
+    else ctl.pause();
+    updateControls();
+  }
+  $("hudPause").addEventListener("click", togglePause);
   $("reset").addEventListener("click", () => { stopAndReset(); app.log("Cell reset: robot at home, parts restocked.", "info"); });
   $("estop").addEventListener("click", () => {
     if (ctl.prog && (ctl.running || ctl.state === "paused")) ctl.fault(new RobotError("Emergency stop pressed. Motion halted. Press Reset cell, then Run.", app.line));

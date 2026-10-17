@@ -112,10 +112,18 @@ pre.code { font: 12px/1.5 var(--f-mono); background: var(--panel-2); border: 1px
 .tl { display: inline-flex; gap: 3px; margin-left: auto; }
 .tl i { width: 11px; height: 11px; border-radius: 50%; background: var(--panel-2); border: 1px solid var(--line); }
 .tl i.r.on { background: #e0261c; box-shadow: 0 0 6px #e0261c; } .tl i.a.on { background: #e0a106; box-shadow: 0 0 6px #e0a106; } .tl i.g.on { background: #2fbf5f; box-shadow: 0 0 6px #2fbf5f; }
+.play { left: 10px; bottom: 10px; display: flex; align-items: center; gap: 6px; padding: 4px; }
+.play button { font: inherit; font-size: 13px; font-weight: 600; border: 1px solid var(--line); background: var(--panel-2); color: var(--ink); border-radius: 5px; padding: 5px 12px; cursor: pointer; }
+.play button.pp { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); min-width: 96px; }
+.play button.pp.resume { background: var(--ok); border-color: var(--ok); }
+.play #playInfo { font-size: 12px; color: var(--muted); padding-right: 6px; }
+#pausedTag { left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 10px 16px; font-size: 15px; font-weight: 700; letter-spacing: .03em; }
+.animbox { position: relative; }
+.animbox .animpp { position: absolute; right: 8px; bottom: 8px; font: inherit; font-size: 12px; font-weight: 600; border: 1px solid var(--line); background: var(--hud); color: var(--ink); border-radius: 5px; padding: 4px 10px; cursor: pointer; }
 .vtools { right: 10px; bottom: 10px; display: flex; gap: 4px; padding: 4px; }
 .vtools button { border: 1px solid transparent; background: none; border-radius: 4px; padding: 4px 8px; font-size: 12px; }
 .vtools button:hover, .vtools button[aria-pressed="true"] { border-color: var(--line); background: var(--panel-2); }
-#caption { left: 10px; bottom: 54px; right: 10px; padding: 8px 12px; font-size: 13px; max-width: 760px; }
+#caption { left: 10px; bottom: 58px; right: 10px; padding: 8px 12px; font-size: 13px; max-width: 760px; }
 #comp { left: 10px; bottom: 54px; width: min(340px, calc(100% - 20px)); padding: 10px 12px 8px; }
 #comp b { font-size: 14px; } #comp p { margin: 4px 0 0; font-size: 12.5px; }
 #comp .x { position: absolute; right: 6px; top: 4px; border: 0; background: none; font-size: 18px; color: var(--muted); }
@@ -289,6 +297,8 @@ dl.kv dt { color: var(--muted); } dl.kv dd { margin: 0; font-family: var(--f-mon
         <div class="hud sbar"><span class="chip" id="stChip">Ready</span><span class="arc" id="arcInfo"></span><span id="modeInfo"></span><span class="tl" id="tl" title="Tower light"></span><span id="almLine"></span></div>
         <div class="hud" id="caption" hidden></div>
         <div class="hud" id="comp" hidden></div>
+        <div class="hud play" id="playBar"><button id="pauseBtn" class="pp" aria-label="Pause everything that is running">❚❚ Pause</button><button id="stopBtn" aria-label="Stop the demo or program">■ Stop</button><span id="playInfo"></span></div>
+        <div class="hud" id="pausedTag" hidden>PAUSED — press Resume (or P) to continue</div>
         <div class="hud vtools"><button id="vIso">Cell view</button><button id="vWeld">Weld view</button><button id="vFrames" aria-pressed="true">Frames</button></div>
       </div>
       <div class="ops">

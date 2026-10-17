@@ -25,7 +25,7 @@
     },
     onProgramsChanged() { programDirty = true; },
     onSyntaxError(e) { this.log(`Program error, line ${e.line}: ${e.message}`, "error"); setTab("program"); },
-    onRunStart() { runInfo = { prog: tp.selected, mode: world.mode, weld: world.weldEnable, startBeads: world.part.beads.length }; },
+    onRunStart() { if (paused) setPaused(false); runInfo = { prog: tp.selected, mode: world.mode, weld: world.weldEnable, startBeads: world.part.beads.length }; },
     explainKey(k) { const d = TP_KEYS[k]; if (!d) return; $("explain").innerHTML = `<b>${esc(d.label)}</b> <span class="grp">${esc(d.group)}</span><p>${esc(d.text)}</p>`; },
     onKey(k) { /* used by missions */ },
     openLearn(id) { setMode("learn"); const i = CHAPTERS.findIndex((c) => c.id === id); if (i >= 0) setChapter(i); },
@@ -104,7 +104,7 @@
   // ---------------------------------------------------------------- learn
   let chapIdx = Math.min(store.get("chapter", 0), CHAPTERS.length - 1);
   const read = new Set(store.get("read", []));
-  let animFn = null, animT0 = 0;
+  let animFn = null, animClock = 0;
   function chapterList() {
     const sel = $("chapSel"); sel.innerHTML = "";
     let part = null, g = null;
@@ -133,14 +133,15 @@
     $("chapter").innerHTML = `
       <div class="eyebrow">${esc(c.part)} · Chapter ${chapIdx + 1} of ${CHAPTERS.length}${read.has(c.id) ? ' · <span class="ok">checked</span>' : ""}</div>
       <h2>${esc(c.title)}</h2><p class="lead">${esc(c.lead)}</p>
-      ${c.anim ? `<div class="animbox"><canvas id="anim" aria-label="Animation: ${esc(c.title)}"></canvas></div>` : ""}
+      ${c.anim ? `<div class="animbox"><canvas id="anim" aria-label="Animation: ${esc(c.title)}"></canvas><button class="animpp" id="animPP">${paused ? "▶ Resume" : "❚❚ Pause"}</button></div>` : ""}
       <div class="actions">${cellBtn}${weldBtn}</div>
       <div class="prose">${c.body === "__ALARMS__" ? alarmTable() : c.body}</div>
       ${c.keys ? `<div class="prose">${keyTable()}</div>` : ""}
       <div class="quiz">${(c.quiz || []).map((q, qi) => `<div class="qz" data-q="${qi}"><h3>Check yourself</h3><p>${esc(q.q)}</p>${q.o.map((o, oi) => `<button class="opt" data-o="${oi}">${esc(o)}</button>`).join("")}<p class="why" hidden></p></div>`).join("")}</div>
       <div class="nav"><button class="btn" id="prevC" ${chapIdx === 0 ? "disabled" : ""}>Previous</button><button class="btn" id="nextC" ${chapIdx === CHAPTERS.length - 1 ? "disabled" : ""}>Next chapter</button></div>`;
     $("chapter").scrollTop = 0;
-    animFn = c.anim ? ANIMS[c.anim] : null; animT0 = performance.now();
+    animFn = c.anim ? ANIMS[c.anim] : null; animClock = 0;
+    if ($("animPP")) $("animPP").addEventListener("click", togglePause);
     if ($("cellAct")) $("cellAct").addEventListener("click", () => cellAction(c.cell));
     if ($("demoWeld")) $("demoWeld").addEventListener("click", demoWeld);
     $("prevC").addEventListener("click", () => setChapter(chapIdx - 1));
@@ -166,6 +167,7 @@
   function caption(t) { $("caption").hidden = !t; $("caption").textContent = t || ""; }
   function cellAction(a, quiet) {
     if (!scene.ok) return;
+    if (!quiet && paused) setPaused(false);
     if (a === "pendant") { setMode("practice"); $("explainKeys").checked = true; tp.explain = true; app.log("Explain keys is on: click any pendant key to read about it.", "msg"); return; }
     if (a === "tour") {
       const ids = ["controller", "pendant", "modeswitch", "base", "axis2", "axis3", "feeder", "torch", "powersource", "wiredrum", "gas", "positioner", "part", "tailstock", "ground", "reamer", "fume", "fence", "door", "curtain", "panel", "tower", "plc"];
@@ -207,12 +209,46 @@
     }
   }
   function demoWeld() {
+    setPaused(false);
     setMode("practice");
     app.prepareAuto();
     if (scene.ok) scene.view("weld");
     app.operator(["clamp", "start"]);
     app.log("Demo: AUTO cycle. Operator clamps and presses START. Time-lapse is on.", "msg");
   }
+
+  // ---- pause / stop for everything that runs on its own ----
+  let paused = false;
+  function setPaused(on) {
+    paused = !!on;
+    const b = $("pauseBtn");
+    b.textContent = paused ? "▶ Resume" : "❚❚ Pause"; b.classList.toggle("resume", paused);
+    b.setAttribute("aria-label", paused ? "Resume" : "Pause everything that is running");
+    if ($("animPP")) $("animPP").textContent = paused ? "▶ Resume" : "❚❚ Pause";
+    $("pausedTag").hidden = !paused;
+    if (paused) world.btn.start = world.btn.stop = world.btn.clamp = world.btn.unclamp = false;
+  }
+  function togglePause() { setPaused(!paused); }
+  function stopAll() {
+    const was = demo ? "demo" : ctl.running || ctl.state === "paused" ? "program" : null;
+    stopDemo(); opQueue = [];
+    if (ctl.prog && (ctl.running || ctl.state === "paused")) { ctl.state = "idle"; ctl.motion = null; ctl.prog = null; }
+    world.arcOff();
+    setPaused(false);
+    if (was) app.log(was === "demo" ? "Demo stopped." : "Program stopped.", "info");
+  }
+  function activityText() {
+    if (demo) return { tour: "Cell tour", axes: "Axis demo", frames: "Frame demo" }[demo.kind];
+    if (ctl.prog && ctl.running) return `${tp.selected || "Program"} running`;
+    if (opQueue.length) return "Operator sequence";
+    if (mode === "learn" && animFn) return "Animation";
+    return "";
+  }
+  $("pauseBtn").addEventListener("click", togglePause);
+  $("stopBtn").addEventListener("click", stopAll);
+  window.addEventListener("keydown", (e) => {
+    if ((e.key === "p" || e.key === "P") && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) { e.preventDefault(); togglePause(); }
+  });
 
   // ---------------------------------------------------------------- component card
   function showComp(id) {
@@ -312,7 +348,7 @@
     $("scenFix").addEventListener("click", () => { s.fix(app); app.log("Fix applied. Running the cycle again.", "msg"); app.prepareAuto(); app.operator(["clamp", "start"]); });
   }
   function startScenario(i) {
-    scen = SCENARIOS[i];
+    scen = SCENARIOS[i]; setPaused(false);
     app.prepareAuto();
     tp.progs = tp.progs.map((p) => p); // keep user programs
     const d = TPStore.defaults()[0], p = tp.progs.find((x) => x.name === "CYL_WELD");
@@ -431,16 +467,22 @@
     const k = (r.width / 680) * dpr;
     const ctx = cv.getContext("2d"); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height); ctx.setTransform(k, 0, 0, k, 0, 0);
     const C = { ink: css("--ink"), muted: css("--muted"), line: css("--line"), accent: css("--accent"), accentSoft: css("--accent-soft"), accentInk: css("--accent-ink"), warn: css("--warn"), danger: css("--danger"), ok: css("--ok"), panel: css("--panel-2"), bg: css("--bg") };
-    if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches || !drawAnim.done) { animFn(ctx, (now - animT0) / 1000, 680, 361, C); drawAnim.done = true; }
+    if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches || !drawAnim.done) { animFn(ctx, animClock, 680, 361, C); drawAnim.done = true; }
   }
   let last = performance.now(), slowT = 0, hudT = 0;
+  let simT = 0;
   function frame(now) {
-    const dt = Math.min(0.05, (now - last) / 1000); last = now;
+    const realDt = Math.min(0.05, (now - last) / 1000); last = now;
+    // Pause freezes simulated time: robot, program, arc, PLC, demos and animations
+    const dt = paused ? 0 : realDt;
+    simT += dt; animClock += dt;
     // scripted operator actions
-    if (opQueue.length) { opClock += dt; while (opQueue.length && opQueue[0].t <= opClock && (!opQueue[0].cond || opQueue[0].cond())) opQueue.shift().fn(); }
-    tp.tick(dt);
-    ctl.tick(dt);
-    world.step(dt, ctl);
+    if (opQueue.length && !paused) { opClock += dt; while (opQueue.length && opQueue[0].t <= opClock && (!opQueue[0].cond || opQueue[0].cond())) opQueue.shift().fn(); }
+    if (!paused) {
+      tp.tick(dt);
+      ctl.tick(dt);
+      world.step(dt, ctl);
+    }
     if (world.plc.startEdge) {
       world.plc.startEdge = false;
       if (world.mode === "AUTO" && world.robotReady && !ctl.running) { tp.selected = tp.selected || "CYL_WELD"; tp.cur.line = 0; tp.runFrom(0, false); app.log(`PLC START: running ${tp.selected} in AUTO.`, "msg"); }
@@ -448,11 +490,11 @@
     if (lastArc === "on" && world.arc.phase !== "on") { renderReport(); const r = world.inspect(); app.log(`Weld finished: ${r.pass ? "PASS" : "FAIL"}, coverage ${(r.coverage * 100).toFixed(0)}%.`, r.pass ? "msg" : "warn"); }
     lastArc = world.arc.phase;
     runDemo(dt);
-    if (scene.ok) { scene.update(world, dt, now / 1000); scene.syncBeads(world.part.beads); scene.render(); }
+    if (scene.ok) { scene.update(world, dt, simT); scene.syncBeads(world.part.beads); scene.render(); }
     drawAnim(now);
-    hudT += dt;
-    if (hudT > 0.1) { hudT = 0; tp.render(); updateStatus(); }
-    slowT += dt;
+    hudT += realDt;
+    if (hudT > 0.1) { hudT = 0; tp.render(); updateStatus(); $("playInfo").textContent = paused ? "Paused" : activityText(); }
+    slowT += realDt;
     if (slowT > 0.25) {
       slowT = 0;
       if (activeTab === "plc" && mode !== "learn") updateLadder();
@@ -476,5 +518,5 @@
   setTab(mode === "trouble" ? "scenario" : "missions");
   app.log("Welcome. Learn the cell, practise on the pendant, then troubleshoot real faults.", "msg");
   requestAnimationFrame(frame);
-  window.__weld = { world, ctl, tp, app, scene, setMode, setChapter, startScenario, demoWeld };
+  window.__weld = { world, ctl, tp, app, scene, setMode, setChapter, startScenario, demoWeld, setPaused, stopAll, get paused() { return paused; } };
 })();

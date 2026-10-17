@@ -118,6 +118,8 @@ code { font-family: var(--f-mono); font-size: 0.88em; background: var(--panel-2)
 .chip.err { background: var(--danger); color: #fff; border-color: var(--danger); }
 .chip.done { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 .status .now { font-family: var(--f-mono); font-size: 12px; min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hudbtn { font: inherit; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 5px; border: 1px solid var(--accent); background: var(--accent); color: var(--accent-ink, #fff); cursor: pointer; }
+.hudbtn:disabled { opacity: .45; cursor: default; background: none; color: var(--muted); border-color: var(--line); }
 .status .cyc { font-family: var(--f-mono); color: var(--muted); font-variant-numeric: tabular-nums; }
 .pose { left: 10px; bottom: 10px; padding: 8px 10px; display: grid; grid-template-columns: auto auto; gap: 2px 14px; font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
 .pose .k { color: var(--muted); }
@@ -241,7 +243,7 @@ code { font-family: var(--f-mono); font-size: 0.88em; background: var(--panel-2)
     <section class="pane stage" id="stage" aria-label="Robot cell">
       <canvas id="gl"></canvas>
       <div class="labels" id="labels"></div>
-      <div class="hud status"><span class="chip" id="stateChip">Ready</span><span class="now" id="nowLine">Load a lesson and press Run.</span><span class="cyc" id="cycle">0.0 s</span></div>
+      <div class="hud status"><span class="chip" id="stateChip">Ready</span><span class="now" id="nowLine">Load a lesson and press Run.</span><span class="cyc" id="cycle">0.0 s</span><button class="hudbtn" id="hudPause" disabled aria-label="Pause the program">❚❚ Pause</button></div>
       <div class="hud tools" role="toolbar" aria-label="View">
         <button id="vIso">Iso view</button><button id="vFront">Front</button><button id="vTop">Top</button>
         <button id="tFrames" aria-pressed="true">Frames</button><button id="tTrail">Clear trail</button>
