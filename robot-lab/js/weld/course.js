@@ -21,7 +21,7 @@ const COMPONENTS = {
   faceplate: ["Faceplate and chuck", "Grips the cylinder's cap-end clevis and turns with E1. Welding current returns through it."],
   tailstock: ["Tailstock with pneumatic centre", "The clamp. The PLC's clamp valve (Y0) pushes the centre into the tube. A reed sensor (X4) confirms it is clamped."],
   ground: ["Earth (ground) clamp", "Returns the welding current to the power source. Loose or dirty means no arc (ARC-013) or an unstable arc."],
-  part: ["Hydraulic cylinder part", "Tube Ø65 × Ø50 × 203 long with the cap end cover (CEC) and its clevis. The CEC spigot sits in a Ø51 counterbore; the J-groove between them gets a 4 mm weld all round."],
+  part: ["Hydraulic cylinder part", "Tube Ø65 × Ø50 × 203 long with the cap end cover (CEC) and its clevis. The CEC spigot sits in a Ø51 counterbore. J preps on both parts form a U-groove that is filled all round."],
   reamer: ["Torch cleaning station (reamer)", "Between cycles it reams spatter out of the nozzle, sprays anti-spatter and cuts the wire to length. Often the TCP check pin lives here too."],
   fume: ["Fume extraction hood", "Captures welding fumes above the arc. Required for operator health."],
   fence: ["Safety fence", "Keeps people out of the robot's reach during AUTO. Panels are bolted, and entry is only through interlocked doors."],
@@ -153,41 +153,67 @@ const CHAPTERS = [
 <table class="t"><tr><th>Parameter</th><th>Effect</th><th>Typical here</th></tr>
 <tr><td>Voltage</td><td>Arc length and bead width</td><td>23–24 V</td></tr>
 <tr><td>Wire feed speed / amps</td><td>Heat and deposition</td><td>Ø1.2 wire, 7 m/min ≈ 220 A</td></tr>
-<tr><td>Travel speed</td><td>Bead size. Too fast gives cold, narrow lack of fusion. Too slow gives a big bead and burn-through</td><td>5 mm/s (30 cm/min) for the 4 mm J-groove</td></tr>
+<tr><td>Travel speed</td><td>Bead size. Too fast gives cold, narrow lack of fusion. Too slow gives a big bead and burn-through</td><td>5 mm/s (30 cm/min) for the U-groove</td></tr>
 <tr><td>Stickout (CTWD)</td><td>Long = less current and an unstable arc</td><td>15–20 mm</td></tr>
 <tr><td>Gas flow</td><td>Too low = porosity, too high = turbulence</td><td>12–18 L/min</td></tr></table>
 <p>These are stored as a <b>weld schedule</b> (DATA screen) and called by number: <code>Arc Start[1]</code>.</p>`,
     quiz: [{ q: "The gas bottle runs empty during a weld. What defect appears?", o: ["Undercut", "Porosity", "Burn-through", "Crater crack"], a: 1, why: "Without shielding, gases dissolve in the pool and form holes (porosity)." }] },
+  { id: "params", part: "5 · Welding", title: "Weld parameters from zero", anim: null, cell: null, calc: true,
+    lead: "Before a robot can weld, someone has to choose the numbers in the weld schedule. Here is what each one does, and how to work them out for a new joint.",
+    body: `<h4>The five numbers in a schedule</h4>
+<table class="t"><tr><th>Number</th><th>What it is</th><th>Turn it up and…</th></tr>
+<tr><td><b>Wire feed speed</b> (m/min)</td><td>How fast the wire goes into the arc. On a MIG machine this <i>sets the current</i>: more wire needs more amps to melt it</td><td>More amps, more weld metal, deeper penetration</td></tr>
+<tr><td><b>Current</b> (A)</td><td>The electricity through the wire. It mostly follows the wire feed and the wire size</td><td>More heat and penetration</td></tr>
+<tr><td><b>Voltage</b> (V)</td><td>Sets the arc length</td><td>Longer, wider arc, flatter and wider bead. Too high: spatter and undercut. Too low: stubbing, narrow ropey bead</td></tr>
+<tr><td><b>Travel speed</b> (mm/s)</td><td>How fast the joint moves past the torch. Here the positioner turns the part</td><td>Smaller, colder bead. Too fast: underfill, lack of fusion. Too slow: big hot bead, burn-through</td></tr>
+<tr><td><b>Gas flow</b> (L/min)</td><td>Shielding gas that keeps air out of the pool</td><td>Too low: porosity. Too high: turbulence pulls air in</td></tr></table>
+<h4>Wire size and metal transfer</h4>
+<p>Thicker wire carries more current and lays more metal. Ø0.8–1.0 suits thin sheet, Ø1.2 is the workhorse for 5–15 mm sections like this cylinder, Ø1.6 is for heavy plate. How the melted wire crosses the arc depends on current and voltage:</p>
+<ul><li><b>Short circuit</b> (low V and A): the wire touches the pool many times a second. Cool, for thin sheet and root gaps. Risk of cold lap on thick parts.</li><li><b>Globular</b> (middle): big drops, more spatter. Usually avoided.</li><li><b>Spray</b> (high V and A, argon-rich gas): a fine stream of droplets. Hot, deep, smooth. Flat position only, which is exactly why the positioner keeps the weld on top.</li></ul>
+<h4>Two formulas every weld engineer uses</h4>
+<p><b>Deposition per mm of seam</b> = wire area × wire speed × 0.95 ÷ travel speed. Compare it with the groove area from the drawing: you need about 100–140% (the extra is the crown).</p>
+<p><b>Heat input</b> (kJ/mm) = 0.8 × volts × amps ÷ travel speed (mm/s) ÷ 1000. Too low and the walls don't fuse. Too high and the part distorts or burns through.</p>
+<h4>Setting up a new joint, step by step</h4>
+<ol><li>Read the drawing: groove shape, depth, land, material, wall thickness.</li><li>Work out the groove area.</li><li>Pick the wire size and gas for the thickness.</li><li>Pick a wire speed that gives a current suited to the wall (here ≈ 200–230 A).</li><li>Choose travel speed so deposition is 100–140% of the groove area.</li><li>Set the voltage for the wire speed (spray: about 24–28 V for Ø1.2), then check heat input.</li><li>Weld a test part, cut and etch a section (macro), check fusion into both walls and the root. Adjust one number at a time.</li><li>Write it down as the WPS and lock it into the robot's schedule.</li></ol>
+<p>Use the calculator below. <b>Use as schedule 1</b> copies your numbers into the robot, so you can watch the result and read the weld report.</p>`,
+    quiz: [{ q: "On a MIG machine, which setting mainly controls the welding current?", o: ["Voltage", "Wire feed speed", "Gas flow", "Travel speed"], a: 1, why: "The power source holds the voltage; the current rises until it melts the wire as fast as it is fed. More wire means more amps." },
+      { q: "Deposition is 70% of the groove area. What do you change?", o: ["Raise the voltage", "Slow the travel or add wire feed", "Add more gas", "Move the TCP"], a: 1, why: "Weld metal per mm = wire area × wire speed ÷ travel. Slower travel or faster wire puts more metal in each millimetre." }] },
   { id: "angles", part: "5 · Welding", title: "Torch angles and positions", anim: "angles", cell: "weldview",
     lead: "Where and how the torch points decides where the heat goes.",
-    body: `<ul><li><b>Work angle</b>: tilt across the joint. Point slightly toward the thicker part (here 10° toward the CEC, which carries the J-groove).</li><li><b>Travel angle</b>: tilt along the travel direction. <b>Push</b> 5–15° gives a flatter bead and good visibility. Pull gives deeper penetration.</li><li><b>Stand-off</b>: keep the wire tip on the joint at the right height.</li><li><b>Lead on a rotating part</b>: put the torch about 10° <b>before</b> top dead centre, against the rotation, so the pool solidifies as it passes the top instead of running down the side.</li></ul>
-<p>The P[3] WELD START point uses exactly these angles: W −170°, P 10°, R 180° with the torch 10° before the top.</p>`,
+    body: `<ul><li><b>Work angle</b>: tilt across the joint. In a symmetric groove, aim on the centre line and tip only slightly toward the heavier part (here 5° toward the CEC).</li><li><b>Travel angle</b>: tilt along the travel direction. <b>Push</b> 5–15° gives a flatter bead and good visibility. Pull gives deeper penetration.</li><li><b>Stand-off</b>: keep the wire tip on the joint at the right height.</li><li><b>Lead on a rotating part</b>: put the torch about 10° <b>before</b> top dead centre, against the rotation, so the pool solidifies as it passes the top instead of running down the side.</li></ul>
+<p>The P[3] WELD START point uses exactly these angles: W −175°, P 10°, R 180° with the torch 10° before the top.</p>`,
     quiz: [{ q: "The part rotates and the pool keeps running down ahead of the arc. What do you adjust?", o: ["More voltage", "Move the torch further before top dead centre", "Faster wire", "Change UFRAME"], a: 1, why: "Increase the lead so the pool freezes as it reaches the top." }] },
   { id: "job", part: "5 · Welding", title: "The job: welding a hydraulic cylinder", anim: "cylinder", cell: "focus:part",
     lead: "Cap end to barrel: the most common robotic weld in cylinder manufacturing.",
     body: `<p>A hydraulic cylinder is a <b>barrel</b> (tube) closed by an <b>end cover / cap end</b> with a clevis at one end and a <b>gland</b> at the other. The piston and rod run inside. The cap-to-barrel weld must hold full system pressure (often 200–300 bar), so it must be <b>leak-tight and fully fused</b> all the way round.</p>
-<ol><li>Prepare: machine the J-groove on the CEC and the Ø51 counterbore in the tube (see the next chapter), clean oil and mill scale.</li><li>Load: CEC clevis on the fixture pin through its Ø19.6 hole, tube on the tailstock centre.</li><li>Clamp: the PLC pushes the tailstock centre in and the sensor confirms.</li><li>Tack (optional): 3 short welds at 120° to hold alignment.</li><li>Weld: the positioner turns 360° plus a 20° overlap (about 11 mm on Ø65) while the torch stays still.</li><li>Crater fill and arc end, then the torch retracts.</li><li>Unclamp, cool, inspect (visual, dye penetrant, pressure test).</li></ol>`,
+<ol><li>Prepare: machine the J prep on the tube end and on the CEC, and the Ø51 counterbore in the tube (see the next chapter). Clean off oil and mill scale.</li><li>Load: CEC clevis on the fixture pin through its Ø19.6 hole, tube on the tailstock centre.</li><li>Clamp: the PLC pushes the tailstock centre in and the sensor confirms.</li><li>Tack (optional): 3 short welds at 120° to hold alignment.</li><li>Weld: the positioner turns 360° plus a 20° overlap (about 11 mm on Ø65) while the torch stays still.</li><li>Crater fill and arc end, then the torch retracts.</li><li>Unclamp, cool, inspect (visual, dye penetrant, pressure test).</li></ol>`,
     quiz: [{ q: "Why does the weld go round 380°, not 360°?", o: ["To use more wire", "So the end overlaps the start and closes the seam", "To cool down", "To check the TCP"], a: 1, why: "The start of a weld is cooler and smaller. Overlapping it melts it in, so there is no gap at the tie-in." }] },
   { id: "cecspec", part: "5 · Welding", title: "Reading the drawing: the CEC groove weld", anim: "cecjoint", cell: "joint",
     lead: "Detail A of the part drawing tells the robot exactly what weld to make. Here is how to read it and turn it into a program.",
     body: `<table class="t"><tr><th>Drawing callout</th><th>Meaning</th><th>In the cell</th></tr>
 <tr><td>Tube Ø65, bore Ø50 <small>+0.1/0</small>, length 203</td><td>7.5 mm wall, honed bore</td><td><code>WELD.R</code> = 32.5 mm, the radius used for coordinated speed</td></tr>
-<tr><td>Ø51 <small>+0.5/0</small></td><td>Counterbore in the tube end. The CEC spigot sits in it, so the parts stay concentric and the arc cannot burn into the bore</td><td>Modelled (depth 3 mm assumed); the root land rests on the tube end</td></tr>
-<tr><td>J-groove: R3, (3.1), 4°</td><td>Machined on the CEC only; the tube end stays square. Flat root 4 mm below the OD, R3 radius whose centre is 3.1 from the tube face, 4° wall. The groove is ≈ 6.1 mm wide at the top</td><td>Wire aimed at the groove centre, torch tipped 10° toward the CEC so the arc reaches the R3 root</td></tr>
-<tr><td>Weld symbol <b>4</b></td><td>4 mm groove weld depth, all round (circle on the arrow)</td><td>One pass, schedule 1</td></tr>
-<tr><td>244 ±1 overall, (41)</td><td>Overall length after welding, CEC length as reference</td><td>Shrinkage of a groove weld is small, but a gap at fit-up changes the length: check fit-up, not just the weld</td></tr></table>
+<tr><td>CEC Ø65</td><td>Same outside diameter as the tube, so the weld crown is the only step</td><td>Stand-off is the same on both sides of the joint</td></tr>
+<tr><td>J prep on tube <b>and</b> CEC</td><td>Each part has half of the groove. Put together they make one <b>U-groove</b> centred on the joint line, so the weld metal can fill it from the root up</td><td>Wire aimed at the joint line</td></tr>
+<tr><td>R3</td><td>Radius at the bottom of the U. The round bottom lets the arc reach the root and both side walls fuse</td><td>Wire tip on the centre line, 15 mm CTWD</td></tr>
+<tr><td>4°</td><td>Included angle of the groove walls, 2° on each part. Nearly parallel walls keep the groove narrow, so it needs less weld metal than a V</td><td>One pass is enough</td></tr>
+<tr><td>6.1</td><td>Groove width at the outside diameter</td><td>A straight-line bead about 8 mm wide covers both edges; no weave needed</td></tr>
+<tr><td>(3.1)</td><td>Root land: solid metal left between the bottom of the groove and the bore. The groove is 7.5 − 3.1 = <b>4.4 mm deep</b></td><td>Heat input is kept moderate so the arc does not burn through the land into the bore</td></tr>
+<tr><td>Ø51 <small>+0.5/0</small></td><td>Counterbore in the tube end. The CEC spigot sits in it, so the parts stay concentric and the joint is backed</td><td>Modelled (depth 3 mm assumed)</td></tr>
+<tr><td>244 ±1 overall, (41)</td><td>Overall length after welding, CEC length as reference</td><td>A gap at fit-up changes the length: check fit-up, not just the weld</td></tr></table>
 <h4>Weld procedure (WPS) used by CYL_WELD</h4>
 <table class="t"><tr><th>Item</th><th>Value</th></tr>
-<tr><td>Process</td><td>GMAW (135), spray-transfer range, PA (1G) position on a rotating part</td></tr>
+<tr><td>Process</td><td>GMAW (135), PA (1G) position on a rotating part</td></tr>
 <tr><td>Wire / gas</td><td>Ø1.2 mm ER70S-6 (G3Si1), 82% Ar / 18% CO₂ at 15 L/min</td></tr>
 <tr><td>Schedule 1</td><td>24.0 V, 220 A, wire 7.0 m/min</td></tr>
 <tr><td>Travel</td><td>5 mm/s (30 cm/min). The part turns at 5 / 32.5 rad/s ≈ 8.8°/s, so one 380° weld takes about 43 s</td></tr>
-<tr><td>Heat input</td><td>0.8 × 24 V × 220 A / 5 mm/s ≈ 0.85 kJ/mm (fine for a 7.5 mm wall)</td></tr>
-<tr><td>Deposition check</td><td>Wire 1.13 mm² × 117 mm/s × 0.95 ≈ 125 mm³/s → ≈ 25 mm² per mm of seam. The groove is ≈ 22 mm² (3 × 3.1 flat root + quarter circle R3 + 1 × 6.1 wall), plus a small crown</td></tr>
-<tr><td>Torch</td><td>CTWD 15 mm, 10° work angle toward CEC, 10° push, 10° before top dead centre</td></tr>
+<tr><td>Groove area</td><td>Half circle R3 (π × 3² / 2 = 14.1 mm²) + walls 1.4 mm high × ≈ 6.05 wide (8.5 mm²) ≈ <b>22.6 mm²</b></td></tr>
+<tr><td>Deposition</td><td>Wire 1.13 mm² × 117 mm/s × 0.95 ≈ 125 mm³/s ÷ 5 mm/s ≈ <b>25 mm² per mm</b>: 111% of the groove, so it fills with a low crown</td></tr>
+<tr><td>Heat input</td><td>0.8 × 24 V × 220 A ÷ 5 mm/s ≈ 0.85 kJ/mm: enough to fuse both walls, not enough to burn through the 3.1 land</td></tr>
+<tr><td>Torch</td><td>CTWD 15 mm, on the centre line tipped 5° toward the heavier CEC, 10° push, 10° before top dead centre</td></tr>
 <tr><td>Rotation</td><td>380°: a 20° (≈ 11 mm) overlap melts in the cold start</td></tr></table>
-<p class="note">These values are a sound starting point for this joint. Your company's qualified WPS always wins: if it lists other values, edit schedule 1 in DATA › Weld schedule and the travel speed follows.</p>`,
-    quiz: [{ q: "The weld symbol shows 4 on a J-groove. The tube wall is 7.5 mm. What does that tell you?", o: ["Weld 7.5 mm deep", "A 4 mm deep groove weld, so a partial-penetration joint held by the spigot", "Use a 4 mm wire", "Weld 4 tacks"], a: 1, why: "The number on a groove weld symbol is the weld depth (effective throat). The spigot in the Ø51 counterbore carries the alignment and backs the root." }] },
+<p class="note">The weld report checks the fill: if schedule 1 lays less than 95% of the groove area the bead is graded <b>underfill</b> and the part fails. Try it in the calculator in "Weld parameters from zero".</p>`,
+    quiz: [{ q: "Both the tube and the CEC have a J prep. What groove do they make together?", o: ["A V-groove", "A U-groove centred on the joint line", "A fillet", "A square butt"], a: 1, why: "Two J preps facing each other form a U: a round R3 bottom with nearly parallel walls. That is why the wire aims at the joint line." },
+      { q: "The wall is 7.5 mm and the drawing shows (3.1) under the groove. How deep is the groove?", o: ["3.1 mm", "4.4 mm", "7.5 mm", "6.1 mm"], a: 1, why: "3.1 is the root land left above the bore. 7.5 − 3.1 = 4.4 mm of groove to fill." }] },
   { id: "arcinst", part: "5 · Welding", title: "Arc instructions, weld enable and dry runs", anim: null, cell: "weldview",
     lead: "How the program controls the arc, and how to test it safely.",
     body: `<pre class="code">  9:L P[3:WELD START] 150mm/sec FINE ;

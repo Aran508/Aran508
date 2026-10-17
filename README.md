@@ -36,17 +36,17 @@ A FANUC ArcTool-style welding cell that welds the cap end cover (CEC) onto a hyd
 
 - **Tube:** Ø65 × Ø50 bore × 203 long, with a Ø51 counterbore that takes the CEC spigot.
 - **CEC:** clevis with an R19 eye, 31.75 wide, and a Ø19.6 pin hole. The fixture locates on that pin.
-- **Joint:** a J-groove on the CEC (R3 root, centre 3.1 from the tube face, 4° wall) filled with a **4 mm groove weld all round**.
-- **Weld:** one pass of Ø1.2 ER70S-6 in 82Ar/18CO₂ at 24 V, 220 A, 7 m/min wire and 5 mm/s travel. The part turns 380°, which gives a 20° overlap.
+- **Joint:** J preps on both the tube and the CEC form a U-groove: R3 bottom on the joint line, 4° included (2° each wall), 6.1 wide at the OD, and a 3.1 root land, so the groove is 4.4 deep and about 22.6 mm² in section. It is filled all round.
+- **Weld:** one pass of Ø1.2 ER70S-6 in 82Ar/18CO₂ at 24 V, 220 A, 7 m/min wire and 5 mm/s travel. That lays about 25 mm² per mm, or 111% of the groove. The part turns 380°, which gives a 20° overlap. The weld report grades underfill if schedule 1 lays less than 95% of the groove area.
 
 It has three modes.
 
-**Learn**: 23 chapters from zero to specialist. Each has an animation, a 3D demo in the cell, and a knowledge check.
+**Learn**: 24 chapters from zero to specialist. Each has an animation, a 3D demo in the cell, and a knowledge check.
 - *The machine:* cell tour (click any component), servo motor, reducer, encoder and brake, the controller cabinet, and every teach pendant key.
 - *Moving the robot:* T1/T2/AUTO, the 3-position enabling switch, E-stops, JOINT/WORLD/TOOL/USER, the jogging procedure, and the TCP.
 - *Signals:* DI/DO/UI/UO/RI/RO/AI/GO, what a PLC is (scan cycle, ladder logic), and the robot–PLC handshake.
 - *Programs:* every TP symbol (`J L C P[] PR[] R[] : ; () % mm/sec FINE CNT ! LBL JMP`), motion, and logic.
-- *Welding:* GMAW physics, torch angles and lead on a rotating part, the cylinder job, reading the drawing (Detail A J-groove and the WPS), and Arc Start/End with dry runs.
+- *Welding:* GMAW physics, weld parameters from zero with a live calculator that can load its values into the robot, torch angles and lead on a rotating part, the cylinder job, reading the drawing (the Detail A U-groove and the WPS), and Arc Start/End with dry runs.
 - *Specialist:* troubleshooting method, alarm reference, weld defects, and maintenance.
 
 **Practice**: an iPendant replica that works:

@@ -129,7 +129,7 @@
     const c = CHAPTERS[chapIdx];
     stopDemo();
     const cellBtn = c.cell ? `<button class="btn primary" id="cellAct">${c.cell === "tour" ? "Start the tour" : c.cell === "pendant" ? "Open the pendant in Practice" : "Show in the cell"}</button>` : "";
-    const weldBtn = ["job", "cecspec", "gmaw", "arcinst", "handshake"].includes(c.id) ? `<button class="btn" id="demoWeld">Watch a full automatic weld</button>` : "";
+    const weldBtn = ["job", "cecspec", "params", "gmaw", "arcinst", "handshake"].includes(c.id) ? `<button class="btn" id="demoWeld">Watch a full automatic weld</button>` : "";
     $("chapter").innerHTML = `
       <div class="eyebrow">${esc(c.part)} · Chapter ${chapIdx + 1} of ${CHAPTERS.length}${read.has(c.id) ? ' · <span class="ok">checked</span>' : ""}</div>
       <h2>${esc(c.title)}</h2><p class="lead">${esc(c.lead)}</p>
@@ -137,6 +137,7 @@
       <div class="actions">${cellBtn}${weldBtn}</div>
       <div class="prose">${c.body === "__ALARMS__" ? alarmTable() : c.body}</div>
       ${c.keys ? `<div class="prose">${keyTable()}</div>` : ""}
+      ${c.calc ? calcHTML() : ""}
       <div class="quiz">${(c.quiz || []).map((q, qi) => `<div class="qz" data-q="${qi}"><h3>Check yourself</h3><p>${esc(q.q)}</p>${q.o.map((o, oi) => `<button class="opt" data-o="${oi}">${esc(o)}</button>`).join("")}<p class="why" hidden></p></div>`).join("")}</div>
       <div class="nav"><button class="btn" id="prevC" ${chapIdx === 0 ? "disabled" : ""}>Previous</button><button class="btn" id="nextC" ${chapIdx === CHAPTERS.length - 1 ? "disabled" : ""}>Next chapter</button></div>`;
     $("chapter").scrollTop = 0;
@@ -156,10 +157,56 @@
         if (right) { read.add(c.id); store.set("read", [...read]); chapterList(); }
       }));
     });
+    if (c.calc) wireCalc();
     chapterList();
     if (c.cell && c.cell !== "pendant" && c.cell !== "tour") cellAction(c.cell, true);
   }
   $("chapSel").addEventListener("change", (e) => setChapter(+e.target.value));
+
+  // ---- weld parameter calculator (chapter "Weld parameters from zero") ----
+  // approximate amps for each wire size at a given wire feed speed, and the current where spray starts (82Ar/18CO2)
+  const WIRES = { 0.8: { a: 40, b: 14, spray: 150 }, 1.0: { a: 60, b: 15, spray: 185 }, 1.2: { a: 66, b: 22, spray: 220 }, 1.6: { a: 90, b: 30, spray: 280 } };
+  function calcHTML() {
+    const s1 = WELD.schedules[1], row = (id, lab, min, max, step, v, unit) => `<label class="cr"><span>${lab}</span><input type="range" id="${id}" min="${min}" max="${max}" step="${step}" value="${v}"><output id="${id}O"></output><i>${unit}</i></label>`;
+    return `<div class="calc"><h3>Weld parameter calculator</h3>
+      <label class="cr"><span>Wire Ø</span><select id="cWire">${Object.keys(WIRES).map((w) => `<option${+w === (s1.wire || 1.2) ? " selected" : ""}>${(+w).toFixed(1)}</option>`).join("")}</select><output></output><i>mm</i></label>
+      ${row("cWfs", "Wire feed", 2, 14, 0.5, s1.wfs, "m/min")}${row("cV", "Voltage", 16, 32, 0.5, s1.volts, "V")}${row("cTs", "Travel", 2, 12, 0.5, s1.speed, "mm/s")}
+      <div id="cOut"></div>
+      <div class="actions"><button class="btn primary" id="cApply">Use as schedule 1</button><button class="btn" id="cReset">Back to the WPS values</button></div></div>`;
+  }
+  const WPS1 = Object.assign({}, WELD.schedules[1]);
+  function wireCalc() {
+    const area = WELD.drawing.groove.area, L = Math.PI * WELD.drawing.tubeOD * WELD.weldTurn / 360;
+    const read = () => { const w = +$("cWire").value, wfs = +$("cWfs").value, V = +$("cV").value, ts = +$("cTs").value, W = WIRES[w]; return { w, wfs, V, ts, A: Math.round(W.a + W.b * wfs), W }; };
+    const upd = () => {
+      const r = read();
+      $("cWfsO").textContent = r.wfs.toFixed(1); $("cVO").textContent = r.V.toFixed(1); $("cTsO").textContent = r.ts.toFixed(1);
+      const dep = WELD.deposit({ wire: r.w, wfs: r.wfs }, r.ts), fill = dep / area, hi = 0.8 * r.V * r.A / r.ts / 1000;
+      const mode = r.V < 20 || r.A < r.W.spray * 0.7 ? "short circuit" : r.A >= r.W.spray && r.V >= 23.5 ? "spray" : "globular / mixed";
+      const fillV = fill < 0.95 ? ["bad", "Underfill: the groove will not be full. Slow down or add wire."] : fill > 1.5 ? ["warn", "Overfill: a big crown wastes wire and heat. Speed up or cut wire."] : ["ok", "Fills the groove with a low crown."];
+      const hiV = hi < 0.4 ? ["warn", "Cold: risk of lack of fusion on the walls."] : hi > 1.5 ? ["bad", "Hot: risk of burning through the 3.1 land and distortion."] : ["ok", "Good for a 7.5 mm wall."];
+      const modeV = mode === "globular / mixed" ? ["warn", "Globular range: expect spatter. Move volts and amps up to spray or down to short circuit."] : mode === "short circuit" ? ["warn", "Cool transfer: fine for thin sheet, risk of cold lap on this 7.5 mm wall."] : ["ok", "Smooth, deep spray transfer, flat position."];
+      const pct = Math.min(160, fill * 100);
+      $("cOut").innerHTML = `<dl class="kv">
+        <dt>Current (approx.)</dt><dd>${r.A} A</dd>
+        <dt>Metal transfer</dt><dd class="${modeV[0]}">${mode} · ${modeV[1]}</dd>
+        <dt>Weld metal per mm</dt><dd>${dep.toFixed(1)} mm² vs groove ${area.toFixed(1)} mm²</dd>
+        <dt>Groove fill</dt><dd class="${fillV[0]}"><span class="fillbar"><b style="width:${pct / 1.6}%"></b><i style="left:${95 / 1.6}%"></i><i style="left:${150 / 1.6}%"></i></span>${Math.round(fill * 100)}% · ${fillV[1]}</dd>
+        <dt>Heat input</dt><dd class="${hiV[0]}">${hi.toFixed(2)} kJ/mm · ${hiV[1]}</dd>
+        <dt>Weld time</dt><dd>${(L / r.ts).toFixed(0)} s for ${WELD.weldTurn}°</dd></dl>`;
+    };
+    ["cWire", "cWfs", "cV", "cTs"].forEach((id) => $(id).addEventListener("input", upd));
+    $("cApply").addEventListener("click", () => {
+      const r = read(); Object.assign(WELD.schedules[1], { wire: r.w, wfs: r.wfs, volts: r.V, amps: r.A, speed: r.ts });
+      app.log(`Schedule 1 set to Ø${r.w} wire, ${r.wfs} m/min, ${r.V} V, ≈${r.A} A, ${r.ts} mm/s. Press "Watch a full automatic weld" or run CYL_WELD to try it.`, "msg");
+    });
+    $("cReset").addEventListener("click", () => {
+      Object.assign(WELD.schedules[1], WPS1);
+      $("cWire").value = WPS1.wire.toFixed(1); $("cWfs").value = WPS1.wfs; $("cV").value = WPS1.volts; $("cTs").value = WPS1.speed; upd();
+      app.log("Schedule 1 back to the WPS values.", "info");
+    });
+    upd();
+  }
 
   // ---- 3D demos for chapters ----
   let demo = null;
@@ -177,7 +224,7 @@
     if (a === "axes") { demo = { kind: "axes", t: 0, q0: world.q.slice() }; caption("Each axis in turn: J1 waist, J2 shoulder, J3 elbow, J4 roll, J5 bend, J6 flange"); return; }
     if (a === "frames") { demo = { kind: "frames", t: 0 }; scene.showFrames(true); return; }
     if (a === "weldview") { scene.view("weld"); return; }
-    if (a === "joint") { scene.view("joint"); caption("The CEC J-groove: click Weld view or press Watch a full automatic weld to see it filled"); return; }
+    if (a === "joint") { scene.view("joint"); caption("The U-groove between the tube and the CEC (J prep on both). Press Watch a full automatic weld to see it filled"); return; }
     if (a === "plc") { scene.focus("plc", 2.2); scene.highlight("plc"); setTimeout(() => { if (mode !== "learn") return; }, 0); return; }
     if (a.startsWith("focus:")) { const id = a.slice(6); scene.focus(id, id === "fence" ? 5 : 2.0); scene.highlight(id); if (!quiet) showComp(id); }
   }
@@ -434,9 +481,9 @@
     const r = world.inspect();
     const bins = new Array(180).fill(null);
     for (const b of world.part.beads) { const i = Math.floor(b.ang / 2) % 180; if (!bins[i] || b.grade !== "good") bins[i] = b.grade; }
-    const col = { good: "var(--ok)", undercut: "var(--warn)", fast: "var(--warn)", slow: "var(--warn)", stickout: "var(--warn)", lof: "var(--danger)", porosity: "var(--danger)" };
+    const col = { good: "var(--ok)", undercut: "var(--warn)", fast: "var(--warn)", slow: "var(--warn)", stickout: "var(--warn)", overfill: "var(--warn)", underfill: "var(--danger)", lof: "var(--danger)", porosity: "var(--danger)" };
     const map = bins.map((g, i) => `<rect x="${i * 3}" y="0" width="3" height="24" fill="${g ? col[g] : "var(--line)"}"/>`).join("");
-    const names = { missing: "Not welded", porosity: "Porosity", lof: "Lack of fusion (off seam)", undercut: "Undercut (off centre)", fast: "Too fast (narrow, cold)", slow: "Too slow (excess, burn-through risk)", stickout: "Wrong stand-off (unstable arc)" };
+    const names = { missing: "Not welded", porosity: "Porosity", lof: "Lack of fusion (off seam)", undercut: "Undercut (off centre)", fast: "Too fast (narrow, cold)", slow: "Too slow (excess, burn-through risk)", stickout: "Wrong stand-off (unstable arc)", underfill: "Underfill (groove not full)", overfill: "Overfill (excess crown)" };
     const avg = world.part.beads.length ? world.part.beads.reduce((s, b) => s + b.speed, 0) / world.part.beads.length : 0;
     $("tab_report").innerHTML = world.part.beads.length === 0
       ? `<p class="note">No weld on this part yet. Run CYL_WELD with WELD ENBL on (dry runs leave no bead). After the weld, this report shows coverage and defects by position around the seam.</p>`

@@ -247,6 +247,12 @@ class WeldWorld {
     else if (speed > sc.speed * 1.6) { grade = "fast"; note = `${speed.toFixed(1)} mm/s travel (schedule ${sc.speed})`; }
     else if (speed < sc.speed * 0.6) { grade = "slow"; note = `${speed.toFixed(1)} mm/s travel${this.override < 0.99 ? ` (override ${Math.round(this.override * 100)}%: weld at 100%)` : ""}`; }
     else if (Math.abs(stand) > 4) { grade = "stickout"; note = `${stand.toFixed(1)} mm stand-off error`; }
+    else if (this.arc.sched === 1) {
+      // the root pass must fill the U-groove: compare weld metal laid with the groove area
+      const fill = WELD.deposit(sc, speed) / WELD.drawing.groove.area;
+      if (fill < 0.95) { grade = "underfill"; note = `groove ${Math.round(fill * 100)}% filled: more wire or slower travel`; }
+      else if (fill > 1.5) { grade = "overfill"; note = `${Math.round(fill * 100)}% of the groove: excess crown, less wire or faster travel`; }
+    }
     const b = { ang, lat, stand, speed, grade, note, width: this.weave ? 10 : 8 };
     this.part.beads.push(b);
     this.emit("bead", b);
@@ -255,7 +261,7 @@ class WeldWorld {
   // weld inspection: coverage of the seam and defect list
   inspect() {
     const bins = new Array(180).fill(null);
-    for (const b of this.part.beads) { const i = Math.floor(b.ang / 2) % 180; const rank = { good: 3, undercut: 2, fast: 1, slow: 1, stickout: 1, lof: 0, porosity: 0 }[b.grade]; if (!bins[i] || rank > bins[i].rank) bins[i] = { rank, grade: b.grade, note: b.note }; }
+    for (const b of this.part.beads) { const i = Math.floor(b.ang / 2) % 180; const rank = { good: 3, undercut: 2, fast: 1, slow: 1, stickout: 1, underfill: 1, overfill: 1, lof: 0, porosity: 0 }[b.grade]; if (!bins[i] || rank > bins[i].rank) bins[i] = { rank, grade: b.grade, note: b.note }; }
     const covered = bins.filter((b) => b && b.rank >= 2).length / 180;
     const defects = [];
     let curD = null;
@@ -265,7 +271,7 @@ class WeldWorld {
       else if (g) { curD = { grade: g, from: i * 2, to: i * 2 + 2, note: b ? b.note : "" }; defects.push(curD); }
       else curD = null;
     });
-    const fatal = defects.some((d) => ["missing", "porosity", "lof"].includes(d.grade));
+    const fatal = defects.some((d) => ["missing", "porosity", "lof", "underfill"].includes(d.grade));
     return { samples: this.part.beads.length, coverage: covered, defects, pass: this.part.beads.length > 0 && covered > 0.985 && !fatal };
   }
 

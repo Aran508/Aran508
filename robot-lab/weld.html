@@ -119,6 +119,17 @@ pre.code { font: 12px/1.5 var(--f-mono); background: var(--panel-2); border: 1px
 .play #playInfo { font-size: 12px; color: var(--muted); padding-right: 6px; }
 #pausedTag { left: 50%; top: 52px; transform: translateX(-50%); white-space: nowrap; padding: 10px 16px; font-size: 15px; font-weight: 700; letter-spacing: .03em; }
 .animbox { position: relative; }
+.calc { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; margin: 14px 0; background: var(--panel-2); }
+.calc h3 { margin: 0 0 8px; font-size: 15px; }
+.calc .cr { display: grid; grid-template-columns: 78px minmax(0, 1fr) 40px 44px; align-items: center; gap: 8px; margin: 6px 0; font-size: 13px; }
+.calc .cr input, .calc .cr select { width: 100%; min-width: 0; }
+.calc .cr output { font-family: var(--f-mono, monospace); text-align: right; font-variant-numeric: tabular-nums; }
+.calc .cr i { font-style: normal; color: var(--muted); font-size: 12px; }
+.calc dl.kv { margin: 10px 0; } .calc dl.kv dd { font-family: inherit; }
+.calc dd.ok { color: var(--ok); } .calc dd.warn { color: var(--warn); } .calc dd.bad { color: var(--danger); }
+.fillbar { position: relative; display: block; height: 8px; border-radius: 4px; background: var(--line); margin: 3px 0 4px; overflow: hidden; }
+.fillbar b { position: absolute; left: 0; top: 0; bottom: 0; background: currentColor; }
+.fillbar i { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--ink); opacity: .5; }
 .animbox .animpp { position: absolute; right: 8px; bottom: 8px; font: inherit; font-size: 12px; font-weight: 600; border: 1px solid var(--line); background: var(--hud); color: var(--ink); border-radius: 5px; padding: 4px 10px; cursor: pointer; }
 .vtools { right: 10px; bottom: 10px; display: flex; gap: 4px; padding: 4px; }
 .vtools button { border: 1px solid transparent; background: none; border-radius: 4px; padding: 4px 8px; font-size: 12px; }

@@ -51,8 +51,8 @@ class WeldScene extends Cell3D {
     this.rotor = new THREE.Group(); this.rotor.position.set(C[0] * S, C[1] * S, C[2] * S); this.scene.add(this.rotor);
     this.comp("faceplate", this.rotor, [C[0], -560, C[2]]);
     add(this.rotor, this.at(this.cylY(120, 30, this.mat(0x5d6b78, { metalness: 0.4 })), 0, -560, 0));
-    // sy is the tube end face; the groove (3.1 wide) is centred on WELD.seamY, where the wire aims
-    const D = WELD.drawing, sy = WELD.seamY + D.groove.width / 2, pinY = sy - D.pinFromSeam;
+    // sy is the joint line (tube face = CEC face); the U-groove is centred on it and the wire aims there
+    const D = WELD.drawing, sy = WELD.seamY, pinY = sy - D.pinFromSeam;
     // clevis fixture: a fork on the faceplate and a locating pin through the CEC's Ø19.6 hole
     for (const sx of [-1, 1]) add(this.rotor, this.at(this.boxMesh(10, -545 - pinY + 26, 58, steel), sx * (D.clevisW / 2 + 7), (-545 + pinY - 26) / 2, 0));
     const pin = this.cylY(D.pinHole / 2 - 0.3, D.clevisW + 34, steel, 20); pin.rotation.z = Math.PI / 2; pin.position.set(0, pinY * S, 0); this.rotor.add(pin);
@@ -62,17 +62,21 @@ class WeldScene extends Cell3D {
     const capMat = this.mat(0x98a1a9, { metalness: 0.25, roughness: 0.5, side: THREE.DoubleSide });
     const lathe = (pts, mat) => { const g = new THREE.LatheGeometry(pts.map(([r, y]) => new THREE.Vector2(r * S, y * S)), 64); const m = new THREE.Mesh(g, mat); m.castShadow = m.receiveShadow = true; return m; };
     const Ro = WELD.R, Rb = WELD.bore, Rc = D.counterbore / 2, cd = D.counterboreDepth, g = D.groove;
-    // tube Ø65 x Ø50, square end with the Ø51 x 3.1 counterbore
-    this.part.add(lathe([[Rc, sy], [Ro, sy], [Ro, WELD.tubeY1], [Rb, WELD.tubeY1], [Rb, sy + cd], [Rc, sy + cd], [Rc, sy]], tubeMat));
-    // CEC: spigot in the counterbore, root land on the tube face, then the J-groove: flat root,
-    // R3 radius (centre 3.1 from the tube face) and a 4° wall up to the OD
-    const rootR = Ro - g.depth, yc = sy - g.centre;
-    const cec = [[0, sy + cd - 0.2], [Rc - 0.2, sy + cd - 0.2], [Rc - 0.2, sy], [rootR, sy], [rootR, yc]];
-    for (let i = 1; i <= 8; i++) { const t = (i / 8) * Math.PI / 2; cec.push([rootR + g.rootR - g.rootR * Math.cos(t), yc - g.rootR * Math.sin(t)]); }
-    cec.push([Ro, sy - g.width], [Ro, sy - D.cecBody + 1], [Ro - 1, sy - D.cecBody], [0, sy - D.cecBody]);
-    this.part.add(lathe(cec, capMat));
+    // J prep (half of the U-groove) on a member, mirrored by side: +1 tube, -1 CEC.
+    // Root land up to r = bore + 3.1, R3 arc centred on the joint line, then a 2° wall to the OD.
+    const rootR = Rb + g.land, rc = rootR + g.rootR, half = g.includedDeg / 2 * DEG;
+    const jprep = (side) => {
+      const pts = [[rootR, sy]];
+      for (let i = 1; i <= 10; i++) { const t = (i / 10) * Math.PI / 2; pts.push([rc - g.rootR * Math.cos(t), sy + side * g.rootR * Math.sin(t)]); }
+      pts.push([Ro, sy + side * (g.rootR + (Ro - rc) * Math.tan(half))]);
+      return pts;
+    };
+    // tube Ø65 x Ø50: Ø51 counterbore for the CEC spigot, root land, J prep
+    this.part.add(lathe([[Rc, sy], ...jprep(1), [Ro, WELD.tubeY1], [Rb, WELD.tubeY1], [Rb, sy + cd], [Rc, sy + cd], [Rc, sy]], tubeMat));
+    // CEC: spigot in the counterbore, root land on the tube face, J prep, body Ø65
+    this.part.add(lathe([[0, sy + cd - 0.2], [Rc - 0.2, sy + cd - 0.2], [Rc - 0.2, sy], ...jprep(-1), [Ro, sy - D.cecBody + 1], [Ro - 1, sy - D.cecBody], [0, sy - D.cecBody]], capMat));
     // dark root of the open groove, so it reads before welding
-    const groove = lathe([[rootR + 0.25, sy - 0.1], [rootR + 0.25, yc - 1.5]], this.mat(0x2a2d30, { roughness: 0.9, side: THREE.DoubleSide }));
+    const groove = lathe([[rootR + 0.25, sy + 1.6], [rootR + 0.25, sy - 1.6]], this.mat(0x2a2d30, { roughness: 0.9, side: THREE.DoubleSide }));
     this.part.add(groove); this.groove = groove;
     // clevis tongue (31.75 wide, R19 eye) with the Ø19.6 pin hole
     const tongue = this.at(this.boxMesh(D.clevisW, D.pinFromSeam - D.cecBody, D.eyeR * 2, capMat), 0, sy - (D.cecBody + D.pinFromSeam) / 2, 0); this.part.add(tongue);
@@ -265,7 +269,7 @@ class WeldScene extends Cell3D {
 
   syncBeads(beads) {
     if (!this.ok) return;
-    const cols = { good: 0xc9b9a0, undercut: 0xd9a35a, fast: 0xa9b6c4, slow: 0x8f6b4a, stickout: 0x9a8a6a, lof: 0x6a7480, porosity: 0x3b3b3b };
+    const cols = { good: 0xc9b9a0, undercut: 0xd9a35a, fast: 0xa9b6c4, slow: 0x8f6b4a, stickout: 0x9a8a6a, lof: 0x6a7480, porosity: 0x3b3b3b, underfill: 0x7d8a96, overfill: 0xb08a50 };
     const m = new THREE.Matrix4(), c = new THREE.Color();
     const start = this.bead.count, n = Math.min(beads.length, this.beadMax);
     if (n < start) this.bead.count = 0;

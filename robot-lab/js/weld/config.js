@@ -7,19 +7,22 @@ const WELD = (() => {
   const torch = Pose.mul(Pose.mul(T(0, 0, 180), { type: "pose", p: [0, 0, 0], R: Mat.ry(30 * DEG) }), T(0, 0, 150));
   const axisC = [820, 0, 700];
   // Part to the customer drawing: tube Ø65 OD x Ø50 bore x 203 long, cap end cover (CEC) with clevis.
-  // Joint: the tube end is counterbored Ø51 and the CEC spigot sits in it. The CEC carries a J-groove:
-  // flat root 4 mm below the OD, R3 root radius whose centre is 3.1 from the tube face, 4° wall. 4 mm groove weld all round.
+  // Joint: the tube end is counterbored Ø51 and the CEC spigot sits in it. Both the tube and the CEC carry a
+  // J prep, so together they form a U-groove: R3 bottom on the joint line, 2° walls (4° included), 6.1 wide
+  // at the OD, 3.1 root land above the bore, so the groove is 7.5 - 3.1 = 4.4 deep. Filled all round.
   const R = 32.5, seamY = -460;
   const drawing = {
     tubeOD: 65, bore: 50, tubeL: 203, overall: 244, cecL: 41,
     counterbore: 51, counterboreDepth: 3, // depth not dimensioned on the drawing: assumed
-    groove: { type: "J", depth: 4, rootR: 3, centre: 3.1, width: 3.1 + 3 + Math.tan(4 * DEG), wallDeg: 4 },
+    groove: { type: "U (J on tube and CEC)", rootR: 3, land: 3.1, includedDeg: 4, width: 6.1, depth: 32.5 - 25 - 3.1 },
     cecBody: 20.64, pinFromSeam: 41, eyeR: 19, clevisW: 31.75, pinHole: 19.6,
-    weldSize: 4, overlapDeg: 20,
+    overlapDeg: 20,
   };
+  // U-groove cross-section: R3 half circle + the 2° walls from the arc centre to the OD
+  { const g = drawing.groove, h = R - (drawing.bore / 2 + g.land + g.rootR); g.area = Math.PI * g.rootR ** 2 / 2 + h * (2 * g.rootR + h * Math.tan(g.includedDeg / 2 * DEG)); }
   const lead = -10; // torch sits 10 deg before top dead centre, so the puddle freezes as it rolls over the top
   const start = [axisC[0] + R * Math.sin(lead * DEG), seamY, axisC[2] + R * Math.cos(lead * DEG)];
-  const ori = [-170, 10, 180]; // W, P, R: torch tipped 10 deg toward the J-prepped CEC, 10 deg push angle
+  const ori = [-175, 10, 180]; // W, P, R: wire on the groove centre line, tipped 5 deg toward the heavier CEC, 10 deg push
   const Rw = Rot.fromFixedXYZ(...ori);
   const zt = Mat.col(Rw, 2);
   const back = (d) => Vec.sub(start, Vec.scale(zt, d));
@@ -39,11 +42,13 @@ const WELD = (() => {
     tLimit: 250, // mm/s in T1
     schedules: [
       null,
-      // Ø1.2 mm ER70S-6 wire, 82% Ar / 18% CO2, CTWD 15 mm. One pass fills the J-groove (~22 mm²) plus a ~1 mm crown.
-      { name: "CEC J-groove 4 mm", volts: 24.0, amps: 220, wfs: 7.0, speed: 5.0, gas: 15 },
-      { name: "Cosmetic cap pass", volts: 22.5, amps: 190, wfs: 5.5, speed: 6.0, gas: 15 },
-      { name: "Tack weld", volts: 20.0, amps: 160, wfs: 6.5, speed: 6.0, gas: 15 },
+      // Ø1.2 mm ER70S-6 wire, 82% Ar / 18% CO2, CTWD 15 mm. One pass fills the U-groove (~22.6 mm²) plus a small crown.
+      { name: "CEC U-groove 1 pass", volts: 24.0, amps: 220, wfs: 7.0, speed: 5.0, gas: 15, wire: 1.2 },
+      { name: "Cosmetic cap pass", volts: 22.5, amps: 190, wfs: 5.5, speed: 6.0, gas: 15, wire: 1.2 },
+      { name: "Tack weld", volts: 20.0, amps: 160, wfs: 4.0, speed: 6.0, gas: 15, wire: 1.2 },
     ],
+    // weld metal laid per mm of seam (mm²): wire area x feed x ~95% transfer efficiency / travel
+    deposit(sc, speed) { const a = Math.PI * (sc.wire || 1.2) ** 2 / 4; return a * (sc.wfs * 1000 / 60) * 0.95 / Math.max(speed, 0.1); },
     weaves: [null, { name: "Sine", amp: 2.5, freq: 1.5 }],
     pts: {
       approach: { p: back(80), o: ori },
@@ -135,7 +140,7 @@ const TPStore = (() => {
       {
         name: "CYL_WELD", comment: "CEC to tube weld",
         lines: [
-          "!CEC to tube: 4mm J-groove weld",
+          "!CEC to tube: U-groove, 1 pass",
           "UFRAME_NUM=0",
           "UTOOL_NUM=1",
           "DO[1:IN CYCLE]=ON",
