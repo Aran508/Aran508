@@ -25,6 +25,7 @@ Open `robot-lab/index.html` in a browser. It loads three.js from cdnjs. Everythi
   - **Universal Robots URScript**: `def`, `p[...]` poses in metres and radians, `movej/movel/movec`, `pose_trans`, `pose_add`
 - **A real simulator for your own code.** Each language has a parser, and all five compile to one shared VM. Edit the program, press Run or Step, and the arm executes it with:
   - analytic inverse kinematics for a 6-axis spherical-wrist arm
+  - a 3D arm built like the real thing: an anchored base with a connector panel, cast turret and upper arm, reducer covers with bolt circles, a servo motor and encoder cap on every axis, a wrist fork, an ISO 9409 tool flange, and a cable dress pack that follows the arm. UR gets a cobot-style arm.
   - joint, linear and circular interpolation, with blending
   - path checks for reach, joint limits and wrist singularities, reported with the line number
   - a work cell: a conveyor feeding boxes, a part sensor, a gripper that really grasps, a pallet user frame, a reject bin, and collision checks against the tables

@@ -112,44 +112,200 @@ class Cell3D {
     }
   }
 
-  // robot geometry built per link in its own frame (mm)
+  // ---- part helpers for the robot (all sizes in mm, in the owning link's frame) ----
+  // convex hull of circles [[x, y, r], ...] as a THREE.Shape
+  hullShape(circles, n = 28) {
+    const pts = [];
+    for (const [cx, cy, r] of circles) for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2; pts.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]); }
+    pts.sort((p, q) => p[0] - q[0] || p[1] - q[1]);
+    const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+    const lo = [], hi = [];
+    for (const p of pts) { while (lo.length > 1 && cross(lo[lo.length - 2], lo[lo.length - 1], p) <= 0) lo.pop(); lo.push(p); }
+    for (const p of pts.slice().reverse()) { while (hi.length > 1 && cross(hi[hi.length - 2], hi[hi.length - 1], p) <= 0) hi.pop(); hi.push(p); }
+    const h = lo.slice(0, -1).concat(hi.slice(0, -1));
+    return new THREE.Shape(h.map(([x, y]) => new THREE.Vector2(x, y)));
+  }
+  // a casting: a hull in the link's XZ plane, extruded across Y from y0 to y1, with rounded edges
+  castXZ(circles, y0, y1, m, bevel = 8) {
+    const g = new THREE.ExtrudeGeometry(this.hullShape(circles.map(([x, z, r]) => [x, z, r - bevel])), { depth: Math.max(0.5, y1 - y0 - 2 * bevel), bevelEnabled: true, bevelThickness: bevel, bevelSize: bevel, bevelSegments: 3, curveSegments: 24 });
+    g.rotateX(Math.PI / 2); g.translate(0, y1 - bevel, 0); g.scale(S, S, S);
+    const o = new THREE.Mesh(g, m); o.castShadow = o.receiveShadow = true; return o;
+  }
+  // a plate: a hull in the XY plane, extruded up from z0 to z1
+  castXY(circles, z0, z1, m, bevel = 4) {
+    const g = new THREE.ExtrudeGeometry(this.hullShape(circles.map(([x, y, r]) => [x, y, r - bevel])), { depth: Math.max(0.5, z1 - z0 - 2 * bevel), bevelEnabled: true, bevelThickness: bevel, bevelSize: bevel, bevelSegments: 2, curveSegments: 16 });
+    g.translate(0, 0, z0 + bevel); g.scale(S, S, S);
+    const o = new THREE.Mesh(g, m); o.castShadow = o.receiveShadow = true; return o;
+  }
+  // a turned part: profile [[r, h], ...] revolved about an axis "x" | "y" | "z" through (cx, cy, cz)
+  turned(profile, axis, c, m, seg = 40) {
+    const g = new THREE.LatheGeometry(profile.map(([r, h]) => new THREE.Vector2(r * S, h * S)), seg);
+    if (axis === "z") g.rotateX(Math.PI / 2); else if (axis === "x") g.rotateZ(-Math.PI / 2);
+    const o = new THREE.Mesh(g, m); o.position.set(c[0] * S, c[1] * S, c[2] * S); o.castShadow = o.receiveShadow = true; return o;
+  }
+  cylAxis(axis, r, h, m, seg = 32) { return axis === "x" ? this.cylZ(r, h, m, seg).rotateY(Math.PI / 2) : axis === "y" ? this.cylY(r, h, m, seg) : this.cylZ(r, h, m, seg); }
+  // bolt heads on a circle, on the face of a part whose axis is "x" | "y" | "z"
+  boltCircle(group, axis, c, pcd, n, m, r = 6, h = 5, phase = 0) {
+    for (let i = 0; i < n; i++) {
+      const a = phase + (i / n) * Math.PI * 2, u = Math.cos(a) * pcd / 2, v = Math.sin(a) * pcd / 2;
+      const p = axis === "x" ? [c[0], c[1] + u, c[2] + v] : axis === "y" ? [c[0] + u, c[1], c[2] + v] : [c[0] + u, c[1] + v, c[2]];
+      group.add(this.at(this.cylAxis(axis, r, h, m, 6), ...p));
+    }
+  }
+  // a servo motor with its encoder cap and power/signal connector, axis along "x" | "y" | "z" from c, length len (+ direction)
+  motor(group, axis, c, r, len, mats) {
+    const d = { x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] }[axis], at = (t) => [c[0] + d[0] * t, c[1] + d[1] * t, c[2] + d[2] * t];
+    group.add(this.at(this.cylAxis(axis, r + 6, 10, mats.trim), ...at(5)));                     // mounting flange
+    group.add(this.at(this.cylAxis(axis, r, len, mats.motor, 6), ...at(10 + len / 2)));        // square-ish servo body
+    group.add(this.at(this.cylAxis(axis, r * 0.88, 28, mats.black), ...at(10 + len + 14)));     // encoder cap
+    group.add(this.at(this.cylAxis(axis, r * 0.55, 4, mats.black), ...at(10 + len + 30)));
+    const up = axis === "z" ? [1, 0, 0] : [0, 0, 1], k = r + 10;
+    group.add(this.at(this.boxMesh(axis === "x" ? 36 : 30, axis === "y" ? 36 : 30, axis === "z" ? 36 : 22, mats.black), ...[0, 1, 2].map((i) => at(10 + len * 0.55)[i] + up[i] * k)));
+    group.add(this.at(this.cylAxis(axis === "z" ? "x" : "z", 9, 20, mats.chrome, 12), ...[0, 1, 2].map((i) => at(10 + len * 0.55)[i] + up[i] * (k + 18))));
+  }
+
+  // robot geometry built per link in its own frame (mm). The kinematics (ARM) are unchanged; this is only
+  // what the arm looks like: castings, reducers, servo motors with encoder caps, bolts and a cable dress pack.
   buildRobot(style) {
     if (this.robot) { this.scene.remove(this.robot); }
     const root = new THREE.Group();
-    const body = this.mat(style.body, { roughness: 0.45, metalness: 0.1 });
-    const trim = this.mat(style.trim, { roughness: 0.6, metalness: 0.25 });
-    const chrome = this.mat(0xb7bec5, { metalness: 0.8, roughness: 0.25 });
-    this.bodyMat = body; this.trimMat = trim;
+    const lm = () => ({
+      body: this.mat(style.body, { roughness: 0.42, metalness: 0.1 }),
+      trim: this.mat(style.trim, { roughness: 0.6, metalness: 0.25 }),
+      motor: this.mat(0x2a2d31, { roughness: 0.5, metalness: 0.35 }),
+      black: this.mat(0x16181b, { roughness: 0.7 }),
+      chrome: this.mat(0xb7bec5, { metalness: 0.85, roughness: 0.25 }),
+      plate: this.mat(0xd9dde1, { roughness: 0.5, metalness: 0.2 }),
+    });
     const link = () => { const g = new THREE.Group(); g.matrixAutoUpdate = false; root.add(g); return g; };
     const L = [link(), link(), link(), link(), link(), link(), link()];
-    // base
-    L[0].add(this.at(this.boxMesh(440, 440, 24, trim), 0, 0, 12));
-    L[0].add(this.at(this.cylZ(175, 180, body), 0, 0, 110));
-    // turret (J1)
-    L[1].add(this.at(this.cylZ(160, 90, trim), 0, 0, 245));
-    L[1].add(this.at(this.boxMesh(260, 300, 170, body), 60, 0, 370));
-    L[1].add(this.at(this.cylY(125, 320, trim), ARM.a1, 0, ARM.d1));
-    L[1].add(this.at(this.cylZ(70, 120, trim), -110, 110, 360));
-    // upper arm (J2): along +z
-    L[2].add(this.at(this.boxMesh(150, 170, ARM.a2 - 80, body), 0, 0, ARM.a2 / 2));
-    L[2].add(this.at(this.cylY(105, 250, trim), 0, 0, ARM.a2));
-    L[2].add(this.at(this.cylY(130, 190, body), 0, 0, 0));
-    // forearm housing (J3): along +x at height a3
-    L[3].add(this.at(this.boxMesh(360, 190, 210, body), 40, 0, ARM.a3 * 0.6));
-    L[3].add(this.at(this.cylY(90, 230, body), 0, 0, 0));
-    L[3].add(this.at(this.cylZ(65, 120, trim).rotateY(Math.PI / 2), -200, 0, ARM.a3 * 0.6));
-    // forearm tube (J4): along local z
-    L[4].add(this.at(this.cylZ(78, ARM.d4 - 300, body), 0, 0, 220 + (ARM.d4 - 300) / 2 - 40));
-    L[4].add(this.at(this.cylZ(62, 120, trim), 0, 0, ARM.d4 - 110));
-    // wrist (J5)
-    L[5].add(this.at(this.cylY(64, 150, trim), 0, 0, 0));
-    L[5].add(this.at(this.cylZ(52, ARM.d6 - 10, body), 0, 0, (ARM.d6 - 10) / 2));
-    // flange + end effector (J6)
-    L[6].add(this.at(this.cylZ(46, 16, chrome), 0, 0, -8));
-    this.buildEndEffector(L, trim, chrome);
+    const M = L.map(() => lm()); // own materials per link, so one axis can be highlighted on its own
+    this.bodyMat = M[2].body; this.trimMat = M[2].trim;
+    if (/collaborative/i.test(style.label || "")) this.buildCobot(L, M);
+    else this.buildIndustrial(L, M);
+    this.cables = [];
+    this.buildEndEffector(L, M[6].trim, M[6].chrome);
     this.links = L;
     this.robot = root;
     this.scene.add(root);
+    if (this.lastQ) this.setJoints(this.lastQ);
+  }
+
+  buildIndustrial(L, M) {
+    const { a1, d1, a2, a3, d4, d6 } = ARM;
+    // ---- L0 base: floor plate with anchor bolts, turned base casting, connector panel, name plate
+    let m = M[0], g = L[0];
+    g.add(this.castXY([[-195, -195, 45], [195, -195, 45], [195, 195, 45], [-195, 195, 45]], 0, 26, m.trim, 3));
+    for (const [x, y] of [[-195, -195], [195, -195], [195, 195], [-195, 195]]) {
+      g.add(this.at(this.cylZ(27, 4, m.chrome, 24), x, y, 28));
+      g.add(this.at(this.cylZ(18, 14, m.chrome, 6), x, y, 37));
+      g.add(this.at(this.cylZ(9, 6, m.chrome, 12), x, y, 47));
+    }
+    g.add(this.turned([[0, 0], [188, 0], [188, 12], [180, 22], [172, 150], [166, 172], [166, 186], [0, 186]], "z", [0, 0, 26], m.body, 56));
+    g.add(this.at(new THREE.Mesh(new THREE.TorusGeometry(175 * S, 2 * S, 6, 64), m.black), 0, 0, 120));
+    g.add(this.at(this.cylZ(160, 12, m.black, 56), 0, 0, 218));                        // J1 bearing seal
+    // rear connector panel with two round connectors (power and signal)
+    g.add(this.at(this.boxMesh(40, 190, 120, m.trim), -178, 0, 110));
+    for (const y of [-48, 48]) { g.add(this.at(this.cylX(26, 8, m.chrome), -202, y, 110)); g.add(this.at(this.cylX(21, 34, m.black), -218, y, 110)); }
+    g.add(this.at(this.boxMesh(4, 74, 44, m.plate), 170, 0, 120));                     // name plate, three rule lines
+    for (const dz of [-10, 0, 10]) g.add(this.at(this.boxMesh(1, 54, 2, m.black), 172.5, 0, 120 + dz));
+    // ---- L1 turret: turned skirt, J1 motor, shoulder tower, J2 reducer and motor
+    m = M[1]; g = L[1];
+    g.add(this.turned([[0, 0], [162, 0], [162, 30], [150, 44], [0, 44]], "z", [0, 0, 224], m.body, 56));
+    this.boltCircle(g, "z", [0, 0, 268], 250, 12, m.chrome, 5, 4);
+    g.add(this.castXZ([[a1, d1, 150], [-95, 268, 10], [230, 268, 10], [-60, 330, 40]], -60, 115, m.body, 10));
+    this.motor(g, "z", [-110, -110, 268], 52, 120, m);                                  // J1 motor, vertical
+    g.add(this.at(this.cylY(122, 22, m.trim, 48), a1, -71, d1));                       // J2 reducer housing
+    this.boltCircle(g, "y", [a1, -82, d1], 210, 12, m.chrome, 5, 3);
+    this.motor(g, "y", [a1, 115, d1], 60, 105, m);                                      // J2 motor on the far side of the tower
+    g.add(this.at(this.boxMesh(14, 120, 160, m.trim), -150, 25, 420));                 // cable bracket on the tower back
+    // ---- L2 upper arm: tapered casting beside the tower, hub caps with bolt circles, cable clamps
+    m = M[2]; g = L[2];
+    g.add(this.castXZ([[0, 0, 132], [0, a2, 100], [0, a2 * 0.5, 104]], -195, -82, m.body, 12));
+    g.add(this.castXZ([[0, 150, 52], [0, a2 - 170, 44]], -203, -193, m.body, 3));     // raised stiffening rib
+    g.add(this.at(this.cylY(96, 10, m.trim, 48), 0, -201, 0));
+    this.boltCircle(g, "y", [0, -206, 0], 150, 10, m.chrome, 5, 3);
+    g.add(this.at(this.cylY(76, 10, m.trim, 48), 0, -201, a2));
+    this.boltCircle(g, "y", [0, -206, a2], 116, 8, m.chrome, 4, 3);
+    for (const z of [250, 460]) g.add(this.at(this.boxMesh(40, 44, 26, m.black), -118, -140, z));
+    // ---- L3 elbow housing: J3 reducer, housing that wraps the elbow, J3 motor, J4 motor at the back
+    m = M[3]; g = L[3];
+    g.add(this.at(this.cylY(94, 18, m.trim, 48), 0, -76, 0));                          // J3 reducer between arm and housing
+    g.add(this.castXZ([[0, 0, 108], [-215, a3, 82], [165, a3, 92]], -67, 92, m.body, 10));
+    this.motor(g, "y", [0, 92, 0], 62, 95, m);                                          // J3 motor on the axis
+    this.motor(g, "x", [-297, 0, a3], 54, 70, m);                                       // J4 motor drives the forearm roll
+    g.add(this.at(this.boxMesh(150, 70, 10, m.trim), -120, 0, a3 + 86));                // cable bracket on top
+    this.boltCircle(g, "x", [257, 0, a3], 150, 8, m.chrome, 4, 3);
+    // ---- L4 forearm (local z along the forearm): roll seal, turned tube, wrist fork
+    m = M[4]; g = L[4];
+    g.add(this.at(this.cylZ(88, 16, m.black, 48), 0, 0, 266));
+    g.add(this.turned([[0, 0], [84, 0], [84, 14], [76, 34], [66, 230], [62, 260], [0, 260]], "z", [0, 0, 274], m.body, 48));
+    for (const sy of [-1, 1]) g.add(this.castXZ([[0, d4, 62], [0, d4 - 115, 60]], sy > 0 ? 48 : -70, sy > 0 ? 70 : -48, m.body, 6));
+    g.add(this.at(this.cylZ(60, 30, m.body, 40), 0, 0, d4 - 115));
+    g.add(this.at(this.boxMesh(10, 90, 70, m.trim), -66, 0, d4 - 160));                 // J5/J6 drive cover
+    for (const [y, z] of [[-34, -186], [34, -186], [-34, -134], [34, -134]]) g.add(this.at(this.cylX(4, 4, m.chrome, 6), -72, y, d4 + z));
+    for (const sy of [-1, 1]) this.boltCircle(g, "y", [0, sy * 72, d4], 80, 6, m.chrome, 3.5, 3);
+    // ---- L5 wrist: J5 hub between the fork plates, turned wrist nose
+    m = M[5]; g = L[5];
+    g.add(this.at(this.cylY(50, 92, m.trim, 40), 0, 0, 0));
+    g.add(this.turned([[0, 0], [48, 0], [48, 34], [42, 58], [40, d6 - 12], [0, d6 - 12]], "z", [0, 0, 0], m.body, 40));
+    // ---- L6 tool flange (ISO 9409-1-50-4-M6): four tapped holes and a dowel pin
+    m = M[6]; g = L[6];
+    g.add(this.at(this.cylZ(40, 12, m.chrome, 48), 0, 0, -6));
+    for (let i = 0; i < 4; i++) { const a = Math.PI / 4 + (i * Math.PI) / 2; g.add(this.at(this.cylZ(3.2, 1, m.black, 12), Math.cos(a) * 25, Math.sin(a) * 25, 0.3)); }
+    g.add(this.at(this.cylZ(3, 6, m.black, 12), 25, 0, 2));
+    // ---- cable dress pack: from the base connector, up the tower and arm, over the elbow, along the forearm
+    this.cableSpecs = [{ r: 13, mat: M[0].black, pts: [
+      [0, [-236, 0, 110]], [0, [-280, 0, 170]], [1, [-170, 25, 300]], [1, [-165, 25, 470]], [1, [-120, -40, 560]],
+      [2, [-118, -140, 250]], [2, [-118, -140, 460]], [2, [-80, -120, 600]], [3, [-120, 0, a3 + 105]], [3, [60, 0, a3 + 100]],
+      [4, [-82, 0, 330]], [4, [-76, 0, 470]] ] }];
+  }
+
+  // a collaborative arm: round joint housings with coloured caps and round tubes, same kinematics
+  buildCobot(L, M) {
+    const { a1, d1, a2, a3, d4, d6 } = ARM;
+    let m = M[0], g = L[0];
+    g.add(this.turned([[0, 0], [120, 0], [120, 16], [96, 30], [92, 200], [0, 200]], "z", [0, 0, 0], m.body, 56));
+    this.boltCircle(g, "z", [0, 0, 18], 200, 8, m.chrome, 5, 3);
+    const joint = (grp, mm, axis, c, r, len) => {
+      grp.add(this.at(this.cylAxis(axis, r, len, mm.body, 48), ...c));
+      const d = { x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] }[axis];
+      for (const sgn of [-1, 1]) grp.add(this.at(this.cylAxis(axis, r * 0.92, 10, mm.trim, 48), c[0] + d[0] * sgn * (len / 2 + 4), c[1] + d[1] * sgn * (len / 2 + 4), c[2] + d[2] * sgn * (len / 2 + 4)));
+    };
+    m = M[1]; g = L[1];
+    joint(g, m, "z", [0, 0, 260], 92, 110);
+    g.add(this.turned([[0, 0], [70, 0], [70, a1 + 10], [0, a1 + 10]], "x", [0, 0, d1], m.body, 40));
+    joint(L[1], m, "y", [a1, 0, d1], 90, 170);
+    m = M[2]; g = L[2];
+    g.add(this.at(this.cylZ(62, a2 - 150, m.body, 40), 0, 0, a2 / 2));
+    joint(g, m, "y", [0, 0, a2], 78, 150);
+    m = M[3]; g = L[3];
+    g.add(this.turned([[0, 0], [58, 0], [58, 260], [0, 260]], "x", [0, 0, a3], m.body, 40));
+    g.add(this.at(this.cylZ(58, a3, m.body, 40), 0, 0, a3 / 2));
+    m = M[4]; g = L[4];
+    g.add(this.at(this.cylZ(54, d4 - 340, m.body, 40), 0, 0, 260 + (d4 - 340) / 2));
+    joint(g, m, "z", [0, 0, d4 - 60], 60, 70);
+    m = M[5]; g = L[5];
+    joint(g, m, "y", [0, 0, 0], 56, 120);
+    g.add(this.at(this.cylZ(48, d6 - 30, m.body, 40), 0, 0, (d6 - 30) / 2));
+    m = M[6]; g = L[6];
+    g.add(this.at(this.cylZ(42, 18, m.trim, 48), 0, 0, -9));
+    g.add(this.at(this.cylZ(32, 4, m.chrome, 48), 0, 0, 1));
+    this.cableSpecs = [];
+  }
+
+  cylX(r, h, m, seg = 32) { return this.cylZ(r, h, m, seg).rotateY(Math.PI / 2); }
+
+  // cables follow the arm: each point is [link, local mm]; rebuilt as a tube every pose
+  updateCables(F) {
+    if (!this.cableSpecs) return;
+    this.cableSpecs.forEach((c, i) => {
+      const pts = c.pts.map(([li, p]) => { const w = Vec.add(F[li].p, Mat.mv(F[li].R, p)); return new THREE.Vector3(w[0] * S, w[1] * S, w[2] * S); });
+      const curve = new THREE.CatmullRomCurve3(pts, false, "centripetal");
+      const geo = new THREE.TubeGeometry(curve, pts.length * 6, c.r * S, 10, false);
+      if (!this.cables[i]) { this.cables[i] = new THREE.Mesh(geo, c.mat); this.cables[i].castShadow = true; this.robot.add(this.cables[i]); }
+      else { this.cables[i].geometry.dispose(); this.cables[i].geometry = geo; }
+    });
   }
 
   buildEndEffector(L, trim, chrome) {
@@ -174,12 +330,14 @@ class Cell3D {
 
   setJoints(q) {
     if (!this.ok || !this.links.length) return;
+    this.lastQ = q.slice();
     const F = fkFrames(q);
     F.forEach((P, i) => {
       const R = P.R, p = P.p;
       this.links[i].matrix.set(R[0], R[1], R[2], p[0] * S, R[3], R[4], R[5], p[1] * S, R[6], R[7], R[8], p[2] * S, 0, 0, 0, 1);
       this.links[i].matrixWorldNeedsUpdate = true;
     });
+    this.updateCables(F);
   }
 
   // ---- boxes ----

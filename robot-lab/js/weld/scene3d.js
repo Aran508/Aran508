@@ -177,15 +177,18 @@ class WeldScene extends Cell3D {
   buildRobot(style) {
     super.buildRobot(style);
     const ids = ["base", "axis1", "axis2", "axis3", "axis4", "axis5", "axis6"];
-    this.links.forEach((L, i) => {
-      L.traverse((o) => { if (o.isMesh) o.material = o.material.clone(); }); // own materials so one axis can glow alone
-      this.comp(ids[i], L, null);
-    });
-    // wire feeder rides on the forearm housing
-    const feeder = new THREE.Group();
-    feeder.add(this.at(this.boxMesh(200, 130, 150, this.mat(0x2f6f9e)), -150, 0, ARM.a3 + 170));
-    feeder.add(this.at(this.cylY(55, 40, this.mat(0x6b4f2f)), -150, 80, ARM.a3 + 170));
+    this.links.forEach((L, i) => this.comp(ids[i], L, null)); // each link has its own materials, so one axis can glow alone
+    // wire feeder rides on the bracket on top of the elbow housing
+    const feeder = new THREE.Group(), fz = ARM.a3 + 91, blue = this.mat(0x2f6f9e), dk = this.mat(0x1d2024, { roughness: 0.7 });
+    feeder.add(this.at(this.boxMesh(190, 120, 130, blue), -120, 0, fz + 65));
+    feeder.add(this.at(this.boxMesh(150, 6, 96, dk), -120, 63, fz + 65));             // drive-roll door
+    for (const x of [-160, -80]) feeder.add(this.at(this.cylY(16, 8, this.mat(0xb7bec5, { metalness: 0.8, roughness: 0.3 })), x, 70, fz + 65));
+    feeder.add(this.at(this.cylX(12, 30, dk), -230, 0, fz + 80));                      // wire conduit inlet
+    feeder.add(this.at(this.cylX(16, 26, dk), -12, 0, fz + 70));                       // torch cable outlet (Euro connector)
     this.links[3].add(feeder);
+    // torch cable from the feeder outlet along the forearm, past the wrist, into the torch
+    this.cableSpecs.push({ r: 11, mat: dk, pts: [[3, [5, 0, fz + 70]], [3, [90, 0, fz + 60]], [4, [-98, 0, 380]], [4, [-92, 0, 560]], [5, [-70, 0, 60]], [6, [-55, 0, 70]], [6, [-26, 0, 110]]] });
+    if (this.lastQ) this.setJoints(this.lastQ);
     this.comp("feeder", feeder, null);
     this.feederGroup = feeder;
   }
