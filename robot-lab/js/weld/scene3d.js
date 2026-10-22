@@ -188,6 +188,7 @@ class WeldScene extends Cell3D {
     this.links[3].add(feeder);
     // torch cable from the feeder outlet along the forearm, past the wrist, into the torch
     this.cableSpecs.push({ r: 11, mat: dk, pts: [[3, [5, 0, fz + 70]], [3, [90, 0, fz + 60]], [4, [-98, 0, 380]], [4, [-92, 0, 560]], [5, [-70, 0, 60]], [6, [-55, 0, 70]], [6, [-26, 0, 110]]] });
+    this.cablesBuilt = false;
     if (this.lastQ) this.setJoints(this.lastQ);
     this.comp("feeder", feeder, null);
     this.feederGroup = feeder;

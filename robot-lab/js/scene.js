@@ -188,6 +188,7 @@ class Cell3D {
     this.links = L;
     this.robot = root;
     this.scene.add(root);
+    this.cablesBuilt = false;
     if (this.lastQ) this.setJoints(this.lastQ);
   }
 
@@ -330,6 +331,8 @@ class Cell3D {
 
   setJoints(q) {
     if (!this.ok || !this.links.length) return;
+    // the pose is set every frame: skip the work while the arm stands still (cables are rebuilt only on motion)
+    if (this.lastQ && this.cablesBuilt && q.every((v, i) => v === this.lastQ[i])) return;
     this.lastQ = q.slice();
     const F = fkFrames(q);
     F.forEach((P, i) => {
@@ -338,6 +341,7 @@ class Cell3D {
       this.links[i].matrixWorldNeedsUpdate = true;
     });
     this.updateCables(F);
+    this.cablesBuilt = true;
   }
 
   // ---- boxes ----
