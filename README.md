@@ -68,6 +68,13 @@ It has three modes.
 
 You diagnose each one with the pendant screens, I/O, the PLC ladder and the weld report, then choose the root cause and apply the fix.
 
+**Pro**: run and test your own programs with no hints, on one device or two.
+- *Both on this device:* pendant, cell and program tools side by side.
+- *Two devices:* open the page on both and choose Pro. On the screen that should show the robot, pick **Robot cell** and it shows a 6-digit code. On the other (a phone works well), pick **Teach pendant** and type the code; a link like `weld.html#pendant=123456` joins directly. The phone becomes the full pendant: every key you press drives the robot on the other screen, and the pendant screen mirrors the controller.
+- The two devices talk over a WebRTC data channel set up through the public PeerJS broker (peerjs.com); the simulation runs only on the robot screen.
+- If the pendant link drops or goes quiet for 2 seconds, the robot stops jogging, pauses any program and releases the enabling switch, like a real pendant cable fault.
+- Both screens have full screen (⛶) and Esc.
+
 **Pause:** anything that runs on its own can be frozen with **Pause** on the 3D view or the **P** key, and cancelled with **Stop**. That covers the cell tour, the axis and frame demos, the lesson animations and the automatic weld. Robot Academy has the same Pause/Resume on its 3D view and next to *Watch it run*.
 
 Alarm codes follow FANUC naming. Texts vary by controller version, so use your controller's manuals for real work.

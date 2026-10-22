@@ -96,6 +96,8 @@
     document.querySelectorAll(".modes button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.mode === m)));
     if (m === "trouble") setTab("scenario");
     else if (m === "practice" && activeTab === "scenario") setTab("missions");
+    else if (m === "pro" && (activeTab === "missions" || activeTab === "scenario")) setTab("program");
+    if (window.WeldPro) window.WeldPro.onMode(m);
     stopDemo();
     // on a phone the pinned 3D view is short: frame the arm, not the whole cell, so jogging is easy to see
     // Practice and Troubleshoot open framed on the robot and the part (phones a little further out, the view is short)
@@ -302,17 +304,18 @@
   const fsApi = !!(document.documentElement.requestFullscreen && document.fullscreenEnabled);
   const svgI = (d) => `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg>`;
   const FS_IN = svgI("M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"), FS_OUT = svgI("M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5");
-  $("fsBtn").innerHTML = FS_IN;
+  $("fsBtn").innerHTML = FS_IN; if ($("proFs")) $("proFs").innerHTML = FS_IN;
   function setFs(on) {
     document.body.classList.toggle("fs", on);
-    const b = $("fsBtn"); b.innerHTML = on ? FS_OUT : FS_IN; b.title = on ? "Exit full screen (Esc)" : "Full screen (Esc to exit)"; b.setAttribute("aria-label", b.title);
+    const b = $("fsBtn"); b.innerHTML = on ? FS_OUT : FS_IN; if ($("proFs")) $("proFs").innerHTML = b.innerHTML; b.title = on ? "Exit full screen (Esc)" : "Full screen (Esc to exit)"; b.setAttribute("aria-label", b.title);
     requestAnimationFrame(() => window.dispatchEvent(new Event("resize")));
   }
-  $("fsBtn").addEventListener("click", () => {
+  function toggleFs() {
     const on = !document.body.classList.contains("fs");
     if (fsApi) { if (on) document.documentElement.requestFullscreen().catch(() => {}); else if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); }
     setFs(on);
-  });
+  }
+  $("fsBtn").addEventListener("click", toggleFs);
   document.addEventListener("fullscreenchange", () => { if (!document.fullscreenElement && document.body.classList.contains("fs")) setFs(false); });
   window.addEventListener("keydown", (e) => {
     if (e.key !== "Escape" || !document.body.classList.contains("fs")) return;
@@ -614,9 +617,9 @@
 
   // start
   buildLadder(); renderMissions(); renderScenarios(); renderReport(); chapterList(); setChapter(chapIdx); syncOps();
-  setMode(location.hash === "#practice" ? "practice" : location.hash === "#trouble" ? "trouble" : mode);
+  setMode(location.hash === "#practice" ? "practice" : location.hash === "#trouble" ? "trouble" : /^#(pro|pendant=)/.test(location.hash) ? "pro" : mode);
   setTab(mode === "trouble" ? "scenario" : "missions");
   app.log("Welcome. Learn the cell, practise on the pendant, then troubleshoot real faults.", "msg");
   requestAnimationFrame(frame);
-  window.__weld = { world, ctl, tp, app, scene, setMode, setChapter, startScenario, demoWeld, setPaused, stopAll, get paused() { return paused; } };
+  window.__weld = { world, ctl, tp, app, scene, view, toggleFs, setTab, setMode, setChapter, startScenario, demoWeld, setPaused, stopAll, get paused() { return paused; } };
 })();

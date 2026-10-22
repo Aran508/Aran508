@@ -267,7 +267,7 @@ dl.kv dt { color: var(--muted); } dl.kv dd { margin: 0; font-family: var(--f-mon
 .fsbtn { top: 10px; right: 10px; width: 32px; height: 32px; padding: 0; font-size: 18px; line-height: 1; color: var(--ink); cursor: pointer; display: grid; place-items: center; }
 .fsbtn:hover { border-color: var(--accent); color: var(--accent); }
 /* full screen: the header and the side tabs step aside so the 3D view gets the room */
-body.fs .app { height: 100vh; }
+body.fs .app { height: 100vh; grid-template-rows: minmax(0, 1fr); }
 body.fs .top, body.fs #side { display: none; }
 body.fs:not([data-mode="learn"]) .main { grid-template-columns: minmax(320px, 380px) minmax(0, 1fr); grid-template-areas: "tp stage"; grid-template-rows: minmax(0, 1fr); }
 body.fs .ops { padding: 6px 10px; gap: 6px 14px; }
@@ -308,6 +308,57 @@ body.fs #log { display: none; }
   body.fs[data-mode="learn"] #view3d { height: 70vh; }
   body:not([data-mode="learn"]) #view3d .sbar #almLine, body:not([data-mode="learn"]) #view3d .vtools { display: none; }
 }
+
+/* ---------------- Pro mode ---------------- */
+#proPane { grid-area: pro; display: none; flex-direction: column; overflow: auto; }
+body[data-mode="pro"] #learn, body[data-mode="pro"] #tpPane, body[data-mode="pro"] #jogGuide,
+body[data-mode="pro"] [data-tab="missions"], body[data-mode="pro"] [data-tab="scenario"] { display: none; }
+body[data-mode="pro"][data-role="pick"] .main, body[data-mode="pro"][data-role="pendant"] .main { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); grid-template-areas: "pro"; }
+body[data-mode="pro"][data-role="pick"] #proPane, body[data-mode="pro"][data-role="pendant"] #proPane { display: flex; }
+body[data-mode="pro"][data-role="pick"] #stage, body[data-mode="pro"][data-role="pick"] #side,
+body[data-mode="pro"][data-role="pendant"] #stage, body[data-mode="pro"][data-role="pendant"] #side { display: none; }
+body[data-mode="pro"][data-role="robot"] .main { grid-template-columns: minmax(0, 1fr) minmax(280px, 340px); grid-template-rows: minmax(0, 1fr); grid-template-areas: "stage side"; }
+body[data-mode="pro"][data-role="solo"] .main { grid-template-columns: minmax(300px, 380px) minmax(0, 1fr) minmax(280px, 340px); grid-template-rows: minmax(0, 1fr); grid-template-areas: "tp stage side"; }
+body[data-mode="pro"][data-role="solo"] #tpPane { display: flex; }
+body.fs[data-mode="pro"][data-role="robot"] .main { grid-template-columns: minmax(0, 1fr); grid-template-areas: "stage"; }
+.propick { max-width: 860px; margin: 0 auto; padding: 24px 16px; }
+.propick h2 { margin: 0 0 6px; }
+.pickrow { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 16px 0; }
+.pickbtn { text-align: left; padding: 16px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2); color: var(--ink); cursor: pointer; display: flex; flex-direction: column; gap: 6px; font: inherit; }
+.pickbtn b { font-size: 17px; } .pickbtn small { color: var(--muted); font-size: 13px; line-height: 1.4; }
+.pickbtn:hover, .pickbtn:focus-visible { border-color: var(--accent); }
+.projoin { border: 1px solid var(--accent); border-radius: 10px; padding: 14px; background: var(--panel-2); }
+.projoin label { font-weight: 600; } .projoin .row { display: flex; gap: 8px; margin-top: 8px; }
+.projoin input { font: 700 22px var(--f-mono); letter-spacing: .15em; width: 10ch; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
+.proremote { display: flex; flex-direction: column; min-height: 0; height: 100%; padding: 6px 8px; }
+.probar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13px; }
+.probar .link { font-weight: 700; } .probar .link.ok { color: var(--ok); } .probar .link.bad { color: var(--danger); }
+.probar .rst { font-family: var(--f-mono); color: var(--muted); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fsbtn2 { width: 32px; height: 32px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel-2); color: var(--ink); cursor: pointer; display: grid; place-items: center; padding: 0; }
+#proTp { max-width: 560px; width: 100%; margin: 0 auto; }
+#proTp button, #proTp .tpk { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: none; }
+.procode { top: 56px; left: 50%; transform: translateX(-50%); padding: 8px 14px; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 12px; max-width: calc(100% - 20px); text-align: center; z-index: 5; }
+.procode .lab { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.procode b { font: 700 26px var(--f-mono); letter-spacing: .12em; color: var(--accent); }
+.procode .st { font-size: 12.5px; flex-basis: 100%; }
+.procode.ok { top: auto; bottom: 60px; left: auto; right: 10px; transform: none; padding: 4px 10px; }
+.procode.ok b { font-size: 14px; } .procode.ok .lab, .procode.ok .btn { display: none; } .procode.ok .st { color: var(--ok); font-weight: 700; flex-basis: auto; }
+body.fs[data-mode="pro"][data-role="pendant"] .proremote { padding-top: 4px; }
+/* a linked pendant is the whole screen: the site header steps aside (Leave and full screen are on the pendant bar) */
+body.linked[data-mode="pro"][data-role="pendant"] .top { display: none; }
+body.linked[data-mode="pro"][data-role="pendant"] .app { height: 100vh; grid-template-rows: minmax(0, 1fr); }
+@media (max-width: 900px) {
+  body[data-mode="pro"][data-role] { padding-top: 0; }
+  body[data-mode="pro"][data-role="robot"] .main, body[data-mode="pro"][data-role="solo"] .main { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; grid-template-areas: "stage" "tp" "side"; }
+  body[data-mode="pro"][data-role="robot"] #view3d { position: relative; height: 72vh; }
+  body[data-mode="pro"][data-role="solo"] { padding-top: max(36vh, 210px); }
+  body[data-mode="pro"][data-role="pendant"] .app, body[data-mode="pro"][data-role="pick"] .app { min-height: 100vh; }
+  body[data-mode="pro"][data-role="pendant"] .proremote { height: calc(100vh - 70px); }
+  body.linked[data-mode="pro"][data-role="pendant"] .proremote { height: calc(100vh - 24px); }
+  body.linked[data-mode="pro"][data-role="pendant"] .app { min-height: 0; height: auto; }
+  body.fs[data-mode="pro"][data-role="pendant"] .proremote { height: 100vh; }
+}
+
 @media (prefers-reduced-motion: reduce) { .tp-switch .knob { transition: none; } }
 </style>
 </head>
@@ -320,6 +371,7 @@ body.fs #log { display: none; }
       <button data-mode="learn" aria-pressed="true">Learn</button>
       <button data-mode="practice" aria-pressed="false">Practice</button>
       <button data-mode="trouble" aria-pressed="false">Troubleshoot</button>
+      <button data-mode="pro" aria-pressed="false">Pro</button>
     </nav>
     <a href="index.html">Robot Academy (all brands) →</a>
   </header>
@@ -344,10 +396,33 @@ body.fs #log { display: none; }
       <div id="explain"></div>
     </section>
 
+    <section class="pane" id="proPane" aria-label="Pro mode">
+      <div id="proPick" class="propick">
+        <h2>Pro mode</h2>
+        <p>Run and test your own programs with no hints. Use one device, or two: one screen shows the robot cell, the other is the teach pendant, and every key you press on the pendant moves the robot on the other screen.</p>
+        <div class="pickrow">
+          <button class="pickbtn" data-role="robot"><b>Robot cell</b><small>This screen shows the robot and gives you a code for the pendant.</small></button>
+          <button class="pickbtn" data-role="pendant"><b>Teach pendant</b><small>This screen is the pendant. You type the code from the robot screen.</small></button>
+          <button class="pickbtn" data-role="solo"><b>Both on this device</b><small>Robot and pendant side by side, no hints.</small></button>
+        </div>
+        <div id="proJoin" class="projoin" hidden>
+          <label for="proCode">Code from the robot screen</label>
+          <div class="row"><input id="proCode" inputmode="numeric" autocomplete="off" maxlength="7" placeholder="123 456"><button class="btn primary" id="proConnect">Connect</button></div>
+          <p id="proJoinMsg" class="note"></p>
+        </div>
+      </div>
+      <div id="proRemote" class="proremote" hidden>
+        <div class="probar"><span id="proLink" class="link">Linking…</span><span id="proRobotSt" class="rst"></span><button class="btn small" id="proLeave">Leave</button><button class="fsbtn2" id="proFs" title="Full screen (Esc to exit)" aria-label="Full screen"></button></div>
+        <button id="proDm" class="dmbig">ENABLING SWITCH: released · tap to hold</button>
+        <div id="proTp"></div>
+      </div>
+    </section>
+
     <section class="pane" id="stage" aria-label="Robot cell">
       <div id="view3d">
         <canvas id="gl"></canvas>
         <button class="hud fsbtn" id="fsBtn" title="Full screen (Esc to exit)" aria-label="Full screen">⛶</button>
+        <div class="hud procode" id="proCodeBox" hidden><span class="lab">Pendant code</span><b id="proCodeNum">––– –––</b><span id="proCodeSt" class="st"></span><button class="btn small" id="proChange">Change role</button></div>
         <div class="hud sbar"><span class="chip" id="stChip">Ready</span><span class="arc" id="arcInfo"></span><span id="modeInfo"></span><span class="tl" id="tl" title="Tower light"></span><span id="almLine"></span></div>
         <div class="hud" id="caption" hidden></div>
         <div class="hud" id="comp" hidden></div>
@@ -409,5 +484,6 @@ body.fs #log { display: none; }
 <script src="js/weld/course.js"></script>
 <script src="js/weld/train.js"></script>
 <script src="js/weld/app.js"></script>
+<script src="js/weld/pro.js"></script>
 </body>
 </html>
