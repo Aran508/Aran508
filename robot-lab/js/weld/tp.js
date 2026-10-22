@@ -27,6 +27,10 @@ class TPController {
   get prog() { return this.progs.find((p) => p.name === this.selected) || this.progs[0]; }
   get shift() { return this.shiftLatch || this.shiftKey; }
   get ovr() { return OVR_STEPS[this.ovrIdx]; }
+  ovrHint() {
+    const v = typeof this.ovr === "number" ? this.ovr + "%" : this.ovr;
+    this.say(this.shift ? `Override ${v}. SHIFT is on, so % jumps VFINE/FINE/5/50/100. Tap SHIFT off to step 5% at a time.` : `Override ${v}.`);
+  }
   applyOverride() { const o = this.ovr; this.w.override = typeof o === "number" ? o / 100 : 0.01; }
   say(m) { this.msg = m; this.msgT = 5; }
   changed() { this.version++; this.app.onProgramsChanged(); }
@@ -77,8 +81,9 @@ class TPController {
       case "bwd": this.bwd(); break;
       case "coord": { const i = COORDS.indexOf(this.coord); this.coord = COORDS[(i + 1) % COORDS.length]; this.say(`Jog coordinate system: ${this.coord}`); break; }
       case "group": this.group = this.group === 1 ? 2 : 1; this.say(this.group === 2 ? "Group 2: positioner. J1 keys turn the part." : "Group 1: robot."); break;
-      case "ovrp": this.ovrIdx = Math.min(OVR_STEPS.length - 1, this.shift ? Math.max(this.ovrIdx + 1, [1, 6, 15, 25].find((i) => i > this.ovrIdx) ?? 25) : this.ovrIdx + 1); this.applyOverride(); break;
-      case "ovrm": this.ovrIdx = Math.max(0, this.shift ? [25, 15, 6, 1, 0].find((i) => i < this.ovrIdx) ?? 0 : this.ovrIdx - 1); this.applyOverride(); break;
+      // like a real pendant: SHIFT+% jumps VFINE/FINE/5/50/100, plain % steps one notch (5% above 5%)
+      case "ovrp": this.ovrIdx = Math.min(OVR_STEPS.length - 1, this.shift ? Math.max(this.ovrIdx + 1, [1, 6, 15, 25].find((i) => i > this.ovrIdx) ?? 25) : this.ovrIdx + 1); this.applyOverride(); this.ovrHint(); break;
+      case "ovrm": this.ovrIdx = Math.max(0, this.shift ? [25, 15, 6, 1, 0].find((i) => i < this.ovrIdx) ?? 0 : this.ovrIdx - 1); this.applyOverride(); this.ovrHint(); break;
       case "weld": if (!this.shift) { this.say("Hold SHIFT and press WELD ENBL."); break; } w.weldEnable = !w.weldEnable; this.say(w.weldEnable ? "Weld ENABLED: Arc Start will strike an arc." : "Weld DISABLED: Arc Start runs dry."); break;
       case "wirep": case "wirem": if (!this.shift) { this.say("Hold SHIFT and press WIRE+ / WIRE− to inch wire."); break; } this.say(k === "wirep" ? "Inching wire forward (no gas, no arc)." : "Retracting wire."); break;
       case "otf": this.say(w.arc.phase === "on" ? `On-the-fly: ${w.arc.volts.toFixed(1)} V ${w.arc.amps.toFixed(0)} A. Adjust in the DATA weld schedule.` : "OTF works while the arc is on."); break;
