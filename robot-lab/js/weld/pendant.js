@@ -41,7 +41,7 @@ const TP_KEYS = {
   fwd: { label: "FWD", group: "Program", text: "SHIFT+FWD runs the program forward from the cursor line (in step mode, one line per press). Only in T1/T2 with the pendant ON and the enabling switch held." },
   bwd: { label: "BWD", group: "Program", text: "SHIFT+BWD steps backward: the robot moves to the previous motion line's point. Handy for re-checking a path." },
   coord: { label: "COORD", group: "Motion", text: "Changes the jog coordinate system: JOINT (one axis at a time), WORLD (X/Y/Z of the cell), TOOL (along the torch), USER (along the positioner frame). Shown at the top of the screen." },
-  ovrp: { label: "+%", group: "Motion", text: "Increases speed override: VFINE, FINE (tiny jog steps per press), 1 to 5%, then 5% steps to 100%. SHIFT + % jumps straight to VFINE, FINE, 5%, 50% or 100%. In T1 the TCP never exceeds 250 mm/s anyway." },
+  ovrp: { label: "+%", group: "Motion", text: "Increases speed override: VFINE (0.1 mm or 0.01° per press), FINE (1 mm or 0.1° per press), 1 to 5%, then 5% steps to 100%. SHIFT + % jumps straight to VFINE, FINE, 5%, 50% or 100%. In T1 the TCP never exceeds 250 mm/s anyway." },
   ovrm: { label: "−%", group: "Motion", text: "Decreases speed override, one step per press (SHIFT + −% jumps 100% → 50% → 5% → FINE → VFINE). Slow down whenever you are close to the part." },
   diag: { label: "DIAG / HELP", group: "Screens", text: "Help for the current screen. On the alarm screen it shows the cause and the remedy of the selected alarm." },
   posn: { label: "POSN", group: "Screens", text: "Current position: joint angles (JNT), or X Y Z W P R in the user (USER) or world (WORLD) frame, plus the positioner axis E1." },

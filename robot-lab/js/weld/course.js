@@ -76,8 +76,15 @@ const CHAPTERS = [
   { id: "jogging", part: "2 · Moving the robot", title: "Jogging step by step", anim: null, cell: "pendant",
     lead: "The exact sequence to move a robot by hand. Do it in this order every time.",
     body: `<ol><li>Controller mode switch to <b>T1</b>.</li><li>Pendant switch to <b>ON</b>.</li><li>Hold the <b>enabling switch</b> in the middle.</li><li>Press <b>RESET</b> to clear SRVO-003 and other alarms. The FAULT light goes off.</li><li>Choose <b>COORD</b> (JOINT to start) and a low override with <b>−%</b> (start at 10%).</li><li>Hold <b>SHIFT</b> and press a jog key, e.g. <b>+X (J1)</b>. Release SHIFT to stop.</li><li>Near the part, change override to <b>FINE</b>: each press moves 1 mm (or 0.1°).</li></ol>
-<p>In this simulator the enabling switch and SHIFT are click-to-latch, because you only have one mouse pointer. Jog keys move while you hold them down.</p>`,
-    quiz: [{ q: "After turning the pendant ON, the FAULT light shows SRVO-003. Why?", o: ["Battery", "Enabling switch released", "Fence open", "Bad program"], a: 1, why: "With the pendant ON the enabling switch must be held. Hold it, then RESET." }] },
+<p>In this simulator the enabling switch and SHIFT are click-to-latch, because you only have one mouse pointer. Jog keys move while you hold them down.</p>
+<h4>Override: speed, FINE and VFINE</h4>
+<table class="t"><tr><th>Override</th><th>What a jog key does</th><th>Use it for</th></tr>
+<tr><td><b>1% to 100%</b></td><td>Moves <b>continuously while you hold</b> the key, at that percentage of jog speed (T1 never goes above 250 mm/s)</td><td>Getting near the part: 30–50% in free space, 5–10% close to the part</td></tr>
+<tr><td><b>FINE</b></td><td>Not a speed. Each <b>press moves one small fixed step</b> and stops, however long you hold. In this simulator: 1 mm (WORLD/TOOL/USER) or 0.1° (JOINT)</td><td>The last few millimetres onto the joint</td></tr>
+<tr><td><b>VFINE</b> (very fine)</td><td>Same, with a step ten times smaller: 0.1 mm or 0.01° per press</td><td>Putting the wire tip exactly on the seam before you record or touch up a point</td></tr></table>
+<p><b>−%</b> and <b>+%</b> step one notch: VFINE, FINE, 1, 2, 3, 4, 5, then 5% steps to 100%. With <b>SHIFT</b> on they jump VFINE ↔ FINE ↔ 5% ↔ 50% ↔ 100%. On real controllers the FINE and VFINE step sizes are set by the controller, so check yours.</p>`,
+    quiz: [{ q: "The override shows FINE and you hold +X for 3 seconds. What happens?", o: ["It moves fast for 3 seconds", "It moves one small step and stops", "Nothing, FINE disables jogging", "It moves at 1%"], a: 1, why: "FINE and VFINE are increment modes: one press, one small step, however long you hold the key." },
+      { q: "After turning the pendant ON, the FAULT light shows SRVO-003. Why?", o: ["Battery", "Enabling switch released", "Fence open", "Bad program"], a: 1, why: "With the pendant ON the enabling switch must be held. Hold it, then RESET." }] },
   { id: "tcp", part: "2 · Moving the robot", title: "TCP and tool frame", anim: null, cell: "focus:torch",
     lead: "The Tool Centre Point is the point the robot actually steers. For welding it is the wire tip.",
     body: `<p>Every Cartesian move, every rotation about the tip, and every taught point depends on the robot knowing exactly where the wire tip is relative to the flange. That is the <b>tool frame</b> (UTOOL 1 here: X 75, Z 310, tipped 30°, from the torch drawing).</p>
