@@ -591,6 +591,21 @@
     requestAnimationFrame(frame);
   }
 
+  // the whole pendant should fit the panel on a laptop screen: scale it down (not below 70%) instead of hiding keys below the fold
+  function fitPendant() {
+    const pane = $("tpPane"), tpEl = $("tp");
+    tpEl.style.zoom = "";
+    if (matchMedia("(max-width: 900px)").matches || mode === "learn") return;
+    // shrink until the pane no longer scrolls (or the 70% floor is reached)
+    let z = 1;
+    for (let i = 0; i < 8 && pane.scrollHeight > pane.clientHeight + 1 && z > 0.7; i++) {
+      z = Math.max(0.7, z * Math.min(0.98, pane.clientHeight / pane.scrollHeight));
+      tpEl.style.zoom = z.toFixed(3);
+    }
+  }
+  window.addEventListener("resize", () => requestAnimationFrame(fitPendant));
+  { const ro = new ResizeObserver(() => fitPendant()); ["tpPane", "jogGuide", "dmBig", "explain"].forEach((id) => ro.observe($(id))); }
+
   // theme + resize
   const applyTheme = () => { if (scene.ok) scene.applyTheme({ sky: css("--sky"), floor: css("--floor"), grid: css("--grid") }); };
   matchMedia("(prefers-color-scheme: dark)").addEventListener("change", applyTheme);
