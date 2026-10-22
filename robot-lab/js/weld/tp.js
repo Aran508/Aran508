@@ -382,13 +382,22 @@ class TPController {
     this.app.onRunStart && this.app.onRunStart();
     return true;
   }
+  // pendant line index of the line the program is on (-1 if unknown)
+  execIdx() {
+    if (!this.lineMap) return -1;
+    const ln = this.w.line; let idx = -1;
+    for (let i = 0; i < this.lineMap.length; i++) if (this.lineMap[i] <= ln) idx = i;
+    return idx;
+  }
   fwd() {
     if (!this.shift) { this.say("Hold SHIFT and press FWD."); return; }
     const why = this.cannotMove(false);
     if (why) { this.say(why); return; }
     if (!this.prog.lines.length) { this.say("The program is empty."); return; }
     const c = this.ctl;
-    if (c.prog && c.state === "paused" && this.loadedVersion === this.version) { if (this.step) c.step(); else c.start(); this.say(this.step ? "Step." : "Running."); return; }
+    // paused with the cursor still on the paused line: carry on; cursor moved elsewhere: restart from the cursor line
+    if (c.prog && c.state === "paused" && this.loadedVersion === this.version && this.cur.line === this.execIdx()) { if (this.step) c.step(); else c.start(); this.say(this.step ? "Step." : "Running."); return; }
+    if (c.prog && c.state === "paused") { c.state = "idle"; c.motion = null; if (this.w.arc && this.w.arc.phase !== "off") this.w.arcOff(); }
     if (this.runFrom(this.cur.line, this.step)) this.say(this.step ? "Step: one line." : "Running from the cursor line.");
   }
   bwd() {
@@ -412,11 +421,11 @@ class TPController {
     const c = this.ctl;
     // T1/T2: motion needs SHIFT + deadman held the whole time
     if (c.running && this.w.mode !== "AUTO" && (!this.shift || !this.w.deadman)) { c.pause(); this.say(!this.shift ? "SHIFT released: program paused." : "Enabling switch released."); }
-    // follow the executing line
-    if (c.prog && c.state !== "idle" && this.lineMap && this.ctl.prog.main === this.selected) {
-      const ln = this.w.line;
-      let idx = -1;
-      for (let i = 0; i < this.lineMap.length; i++) if (this.lineMap[i] <= ln) idx = i;
+    // follow the executing line while it runs; when paused the cursor is free, so you can move it and restart from there
+    const follow = c.running || (this.wasRunning && c.state === "paused"); // ...and once more at the moment it pauses
+    this.wasRunning = c.running;
+    if (follow && c.prog && this.lineMap && this.ctl.prog.main === this.selected) {
+      const idx = this.execIdx();
       if (idx >= 0 && c.frame && c.frame.proc === this.selected) this.cur.line = idx;
     }
     if (c.vars) for (const k in c.vars) { const m = k.match(/^R\[(\d+)\]$/); if (m) this.regs[m[1]] = c.vars[k]; }

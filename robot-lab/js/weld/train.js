@@ -9,9 +9,29 @@ const MISSIONS = [
   { id: "ovr", title: "Set the override to 10%", how: "Make sure SHIFT is off (not orange), then press −% or +% until the top line shows 10%. Each press steps 5% (with SHIFT held it jumps 5% → 50% → 100% instead). Slow speed near parts is a habit, not an option.", check: (a) => a.tp.ovr === 10 },
   { id: "e1", title: "Turn the part to E1 = 90° with GROUP", how: "Press GROUP (G2 E1 shows at the top). Hold SHIFT and +X (J1) to turn the positioner. Press GROUP again to get the robot back.", check: (a) => Math.abs(a.w.e1 - 90) < 5 },
   { id: "point", title: "Record a point in MY_WELD", how: "SELECT → arrow to MY_WELD → ENTER. Jog to any position, press F1 POINT, choose a template with ENTER. The line and the P[ ] data appear.", check: (a) => { const p = a.tp.progs.find((x) => x.name === "MY_WELD"); return !!p && Object.keys(p.points).length > 0; } },
-  { id: "step", title: "Step through CYL_WELD to Arc Start", how: "SELECT CYL_WELD. Type 1 then ITEM to go to line 1. Press STEP (LED on). Press CLAMP on the operator panel so DI[2] comes on. Then SHIFT+FWD once per line until the cursor reaches line 10, Arc Start[1].", check: (a) => a.tp.selected === "CYL_WELD" && a.tp.step && !!a.ctl.prog && a.tp.cur.line >= 9 },
-  { id: "dry", title: "Dry-run the whole weld program in T1", how: "WELD ENBL off (SHIFT+WELD ENBL), part clamped, STEP off. Cursor to line 1, then SHIFT+FWD and keep SHIFT and ENABLE held until the program ends.", check: (a) => a.flags.dryDone },
-  { id: "auto", title: "Weld a cylinder in AUTO and pass inspection", how: "SHIFT+WELD ENBL on. Pendant OFF, mode AUTO, door closed, FAULT RESET on the controller. Then CLAMP and START on the operator panel. Read the Weld report.", check: (a) => a.flags.autoPass },
+  { id: "step", title: "Step through CYL_WELD to Arc Start", how: [
+      "SELECT, choose CYL_WELD with the arrows, ENTER. (If you added lines to it by mistake: Program (.LS) tab › Restore default programs.)",
+      "Go to line 1: type 1, then press ITEM.",
+      "Press STEP. Its light on the top line of the screen comes on: now each FWD runs only one line.",
+      "Press CLAMP on the operator panel. The part is clamped and DI[2] CLAMP OK comes on (line 7 waits for it).",
+      "ENABLE held and SHIFT on, press FWD once per line. Wait for the robot to stop before the next press, until the cursor is on Arc Start[1]."],
+    check: (a) => a.tp.selected === "CYL_WELD" && a.tp.step && !!a.ctl.prog && a.tp.cur.line >= 9 },
+  { id: "dry", title: "Dry-run the whole weld program in T1", how: [
+      "A dry run is the whole path with no arc, to prove it is safe before welding.",
+      "Check the status bar above the 3D view says \"Weld disabled\". It is off at the start, so do NOT press WELD ENBL. If it says \"Weld enabled\", press SHIFT + WELD ENBL once to turn it off.",
+      "Press STEP once so its light goes off: the program now runs continuously instead of one line at a time.",
+      "Go back to line 1: type 1, then press ITEM. (The program you stepped in mission 8 restarts from the cursor.)",
+      "The part must still be clamped: if not, press CLAMP on the operator panel.",
+      "Keep ENABLE held and SHIFT on, and press FWD once. The robot runs to the end on its own; the part turns 380° under the torch with no arc.",
+      "Done when the program reaches [End] and the robot is back home."],
+    check: (a) => a.flags.dryDone },
+  { id: "auto", title: "Weld a cylinder in AUTO and pass inspection", how: [
+      "Turn welding on: SHIFT on, press WELD ENBL once. The status bar says \"Weld enabled\".",
+      "Turn the pendant OFF with its top-left switch (in AUTO the PLC starts the robot, not the pendant).",
+      "On the controller panel choose AUTO, check the door is closed, and press FAULT RESET.",
+      "On the operator panel press CLAMP, wait a second, then START.",
+      "Watch the weld, then open the Weld report tab: you need PASS."],
+    check: (a) => a.flags.autoPass },
 ];
 
 const SCENARIOS = [

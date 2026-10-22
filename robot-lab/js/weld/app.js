@@ -385,7 +385,7 @@
   function renderMissions() {
     $("tab_missions").innerHTML = `<p class="note">Work through these in order. Each one is checked live in the cell.</p>` + MISSIONS.map((m, i) => {
       const done = doneM.has(m.id), cur = !done && MISSIONS.findIndex((x) => !doneM.has(x.id)) === i;
-      return `<div class="mission${done ? " done" : ""}${cur ? " cur" : ""}"><div class="mh"><span class="num">${done ? "✓" : i + 1}</span><b>${esc(m.title)}</b></div>${cur ? `<p>${esc(m.how)}</p>` : ""}</div>`;
+      return `<div class="mission${done ? " done" : ""}${cur ? " cur" : ""}"><div class="mh"><span class="num">${done ? "✓" : i + 1}</span><b>${esc(m.title)}</b></div>${cur ? (Array.isArray(m.how) ? `<ol class="steps">${m.how.map((h) => `<li>${esc(h)}</li>`).join("")}</ol>` : `<p>${esc(m.how)}</p>`) : ""}</div>`;
     }).join("") + `<button class="btn small" id="resetM">Reset missions</button>`;
     $("resetM").addEventListener("click", () => { doneM.clear(); store.set("missions", []); app.flags = {}; store.set("flags", {}); missionState = {}; renderMissions(); });
   }
