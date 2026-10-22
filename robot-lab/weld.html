@@ -101,7 +101,7 @@ pre.code { font: 12px/1.5 var(--f-mono); background: var(--panel-2); border: 1px
 #gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
 .nogl { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 24px; color: var(--muted); z-index: 1; }
 .hud { position: absolute; background: var(--hud); border: 1px solid var(--line); border-radius: 6px; backdrop-filter: blur(6px); font-size: 12px; }
-.sbar { left: 10px; top: 10px; right: 10px; display: flex; gap: 10px; align-items: center; padding: 6px 8px; flex-wrap: wrap; }
+.sbar { left: 10px; top: 10px; right: 50px; display: flex; gap: 10px; align-items: center; padding: 6px 8px; flex-wrap: wrap; }
 .chip { font: 700 11px/1 var(--f-mono); letter-spacing: 0.06em; text-transform: uppercase; padding: 5px 8px; border-radius: 3px; background: var(--panel-2); border: 1px solid var(--line); }
 .chip.run { background: var(--ok); color: #fff; border-color: var(--ok); } .chip.wait { background: var(--warn); color: #1d1300; border-color: var(--warn); }
 .chip.err { background: var(--danger); color: #fff; border-color: var(--danger); } .chip.done { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
@@ -263,8 +263,22 @@ dl.kv dt { color: var(--muted); } dl.kv dd { margin: 0; font-family: var(--f-mon
 .tp-led2 i.on[data-led="fault"] { background: #e0261c; box-shadow: 0 0 5px #e0261c; }
 .tpbar label { display: flex; gap: 5px; align-items: center; }
 
+.fsbtn { top: 10px; right: 10px; width: 32px; height: 32px; padding: 0; font-size: 18px; line-height: 1; color: var(--ink); cursor: pointer; display: grid; place-items: center; }
+.fsbtn:hover { border-color: var(--accent); color: var(--accent); }
+/* full screen: the header and the side tabs step aside so the 3D view gets the room */
+body.fs .app { height: 100vh; }
+body.fs .top, body.fs #side { display: none; }
+body.fs:not([data-mode="learn"]) .main { grid-template-columns: minmax(320px, 380px) minmax(0, 1fr); grid-template-areas: "tp stage"; grid-template-rows: minmax(0, 1fr); }
+body.fs .ops { padding: 6px 10px; gap: 6px 14px; }
+body.fs #log { display: none; }
+
 @media (max-width: 1360px) {
-  body:not([data-mode="learn"]) .main { grid-template-columns: 380px minmax(0, 1fr); grid-template-areas: "tp stage" "tp side"; grid-template-rows: minmax(0, 1.25fr) minmax(0, 1fr); }
+  /* laptops: the 3D view takes the full height in the middle, tools in narrower columns either side */
+  body:not([data-mode="learn"]) .main { grid-template-columns: minmax(300px, 340px) minmax(0, 1fr) minmax(280px, 320px); grid-template-areas: "tp stage side"; grid-template-rows: minmax(0, 1fr); }
+  .ops { padding: 8px 10px; gap: 8px 14px; }
+}
+@media (max-width: 1100px) {
+  body:not([data-mode="learn"]) .main { grid-template-columns: 340px minmax(0, 1fr); grid-template-areas: "tp stage" "tp side"; grid-template-rows: minmax(0, 2.2fr) minmax(0, 1fr); }
 }
 @media (max-width: 900px) {
   html, body { height: auto; } .app { height: auto; }
@@ -279,6 +293,11 @@ dl.kv dt { color: var(--muted); } dl.kv dd { margin: 0; font-family: var(--f-mon
   body:not([data-mode="learn"]) .main { grid-template-areas: "stage" "tp" "side"; }
   body:not([data-mode="learn"]) #view3d { position: fixed; top: 0; left: 0; right: 0; height: 36vh; min-height: 210px; z-index: 30; border-radius: 0; }
   body:not([data-mode="learn"]) { padding-top: max(36vh, 210px); }
+  body.fs:not([data-mode="learn"]) #view3d { height: 50vh; }
+  body.fs:not([data-mode="learn"]) { padding-top: 50vh; }
+  body.fs .app { height: auto; }
+  body.fs:not([data-mode="learn"]) .main { grid-template-columns: minmax(0, 1fr); grid-template-areas: "stage" "tp"; grid-template-rows: none; }
+  body.fs[data-mode="learn"] #view3d { height: 70vh; }
   body:not([data-mode="learn"]) #view3d .sbar #almLine, body:not([data-mode="learn"]) #view3d .vtools { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { .tp-switch .knob { transition: none; } }
@@ -320,6 +339,7 @@ dl.kv dt { color: var(--muted); } dl.kv dd { margin: 0; font-family: var(--f-mon
     <section class="pane" id="stage" aria-label="Robot cell">
       <div id="view3d">
         <canvas id="gl"></canvas>
+        <button class="hud fsbtn" id="fsBtn" title="Full screen (Esc to exit)" aria-label="Full screen">⛶</button>
         <div class="hud sbar"><span class="chip" id="stChip">Ready</span><span class="arc" id="arcInfo"></span><span id="modeInfo"></span><span class="tl" id="tl" title="Tower light"></span><span id="almLine"></span></div>
         <div class="hud" id="caption" hidden></div>
         <div class="hud" id="comp" hidden></div>

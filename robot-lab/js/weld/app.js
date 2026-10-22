@@ -98,7 +98,10 @@
     else if (m === "practice" && activeTab === "scenario") setTab("missions");
     stopDemo();
     // on a phone the pinned 3D view is short: frame the arm, not the whole cell, so jogging is easy to see
-    if (scene.ok && m !== "learn" && matchMedia("(max-width: 900px)").matches) scene.orbit = { target: new THREE.Vector3(0.4, 0, 0.72), dist: 2.9, az: -1.72, el: 0.26 };
+    // Practice and Troubleshoot open framed on the robot and the part (phones a little further out, the view is short)
+    if (scene.ok && m !== "learn") scene.orbit = matchMedia("(max-width: 900px)").matches
+      ? { target: new THREE.Vector3(0.4, 0, 0.72), dist: 2.9, az: -1.72, el: 0.26 }
+      : { target: new THREE.Vector3(0.5, -0.05, 0.92), dist: 2.9, az: -1.5, el: 0.24 };
     requestAnimationFrame(() => window.dispatchEvent(new Event("resize")));
   }
   document.querySelectorAll(".modes button").forEach((b) => b.addEventListener("click", () => setMode(b.dataset.mode)));
@@ -295,6 +298,27 @@
     return "";
   }
   $("pauseBtn").addEventListener("click", togglePause);
+  // ---- full screen: browser full screen where it is allowed, and a full-window layout either way; Esc returns
+  const fsApi = !!(document.documentElement.requestFullscreen && document.fullscreenEnabled);
+  const svgI = (d) => `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg>`;
+  const FS_IN = svgI("M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"), FS_OUT = svgI("M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5");
+  $("fsBtn").innerHTML = FS_IN;
+  function setFs(on) {
+    document.body.classList.toggle("fs", on);
+    const b = $("fsBtn"); b.innerHTML = on ? FS_OUT : FS_IN; b.title = on ? "Exit full screen (Esc)" : "Full screen (Esc to exit)"; b.setAttribute("aria-label", b.title);
+    requestAnimationFrame(() => window.dispatchEvent(new Event("resize")));
+  }
+  $("fsBtn").addEventListener("click", () => {
+    const on = !document.body.classList.contains("fs");
+    if (fsApi) { if (on) document.documentElement.requestFullscreen().catch(() => {}); else if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); }
+    setFs(on);
+  });
+  document.addEventListener("fullscreenchange", () => { if (!document.fullscreenElement && document.body.classList.contains("fs")) setFs(false); });
+  window.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape" || !document.body.classList.contains("fs")) return;
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    setFs(false);
+  });
   $("stopBtn").addEventListener("click", stopAll);
   window.addEventListener("keydown", (e) => {
     if ((e.key === "p" || e.key === "P") && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) { e.preventDefault(); togglePause(); }
