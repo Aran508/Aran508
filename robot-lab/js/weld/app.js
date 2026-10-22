@@ -97,6 +97,8 @@
     if (m === "trouble") setTab("scenario");
     else if (m === "practice" && activeTab === "scenario") setTab("missions");
     stopDemo();
+    // on a phone the pinned 3D view is short: frame the arm, not the whole cell, so jogging is easy to see
+    if (scene.ok && m !== "learn" && matchMedia("(max-width: 900px)").matches) scene.orbit = { target: new THREE.Vector3(0.4, 0, 0.72), dist: 2.9, az: -1.72, el: 0.26 };
     requestAnimationFrame(() => window.dispatchEvent(new Event("resize")));
   }
   document.querySelectorAll(".modes button").forEach((b) => b.addEventListener("click", () => setMode(b.dataset.mode)));
@@ -494,7 +496,17 @@
   }
 
   // ---------------------------------------------------------------- status bar
+  $("dmBig").addEventListener("click", () => tp.key("deadman"));
+  function updateJogGuide() {
+    const w = world, ok0 = w.tpOn && w.mode !== "AUTO", ok1 = ok0 && w.deadman, ok2 = ok1 && w.servoOn && !w.alarms.some((a) => a.code !== "SRVO-065"), ok3 = ok2 && tp.shift;
+    const steps = [[ok0, w.mode === "AUTO" ? "Mode T1 (controller)" : "TP switch ON"], [ok1, "ENABLE held"], [ok2, "RESET (servo on)"], [ok3, "SHIFT"], [!!tp.jog, "Hold a jog key"]];
+    const firstOpen = steps.findIndex(([d]) => !d);
+    $("jogGuide").innerHTML = steps.map(([d, t], i) => `<li class="${d ? "done" : i === firstOpen ? "next" : ""}">${d ? "✓" : i + 1 + "."} ${t}</li>`).join("");
+    const b = $("dmBig"); b.classList.toggle("on", w.deadman); b.setAttribute("aria-pressed", String(w.deadman));
+    b.textContent = w.deadman ? "ENABLING SWITCH (deadman): HELD · tap to release" : "ENABLING SWITCH (deadman): released · tap to hold";
+  }
   function updateStatus() {
+    updateJogGuide();
     const st = !ctl.prog || ctl.state === "idle" ? "Ready" : { running: "Running", waiting: "Waiting", paused: "Paused", done: "Done", error: "Fault" }[ctl.state];
     const chip = $("stChip"); chip.textContent = st; chip.className = "chip " + ({ Running: "run", Waiting: "wait", Fault: "err", Done: "done" }[st] || "");
     const a = world.arc;

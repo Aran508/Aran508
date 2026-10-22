@@ -121,6 +121,7 @@ class PendantView {
       el.addEventListener("pointerup", up); el.addEventListener("pointercancel", up); el.addEventListener("lostpointercapture", up);
       el.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); this.onKey && this.onKey(k, e); setTimeout(up, 120); } });
     });
+    host.addEventListener("contextmenu", (e) => e.preventDefault()); // long-press on a phone must not open a menu
     this.$ = (s) => host.querySelector(s);
   }
   setKeyState(k, on, cls = "on") { (this.keyEls[k] || []).forEach((el) => el.classList.toggle(cls, !!on)); }

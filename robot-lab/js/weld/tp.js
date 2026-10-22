@@ -334,9 +334,9 @@ class TPController {
   doJog(axis, sign, dt, step) {
     const w = this.w, ovr = w.override;
     try {
-      if (this.group === 2) { if (axis !== 0) { this.say("The positioner has one axis: use the J1 keys."); return; } w.setJoints(w.q, "J", 0, w.e1 + sign * (step != null ? step : 40 * ovr * dt)); return; }
+      if (this.group === 2) { if (axis !== 0) { this.say("The positioner has one axis: use the J1 keys."); return; } w.setJoints(w.q, "J", 0, w.e1 + sign * (step != null ? step : 60 * ovr * dt)); return; }
       if (this.coord === "JOINT") {
-        const q = w.q.slice(); q[axis] += sign * (step != null ? step / 10 : 25 * ovr * dt);
+        const q = w.q.slice(); q[axis] += sign * (step != null ? step / 10 : 60 * ovr * dt);
         const [lo, hi] = ARM.limits[axis];
         if (q[axis] < lo || q[axis] > hi) { this.say(`J${axis + 1} is at its stroke limit.`); this.jog = null; return; }
         w.setJoints(q, "J", 0); return;
@@ -348,7 +348,7 @@ class TPController {
         const d = [0, 0, 0]; d[axis] = sign * (step != null ? step : Math.min(250, 1000 * ovr) * dt);
         P.p = Vec.add(P.p, this.coord === "TOOL" ? Mat.mv(T.R, d) : Mat.mv(frameR, d));
       } else {
-        const a = sign * (step != null ? step / 10 : 30 * ovr * dt) * DEG, Rr = [Mat.rx, Mat.ry, Mat.rz][axis - 3](a);
+        const a = sign * (step != null ? step / 10 : 60 * ovr * dt) * DEG, Rr = [Mat.rx, Mat.ry, Mat.rz][axis - 3](a);
         P.R = this.coord === "TOOL" ? Mat.mul(T.R, Rr) : Mat.mul(Rr, T.R);
       }
       const r = ikFlange(Pose.mul(P, Pose.inv(w.tool)), w.q);

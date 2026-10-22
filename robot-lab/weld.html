@@ -210,6 +210,13 @@ dl.kv dt { color: var(--muted); } dl.kv dd { margin: 0; font-family: var(--f-mon
 .tp-estop.on { transform: scale(0.92); box-shadow: inset 0 3px 8px rgba(0,0,0,0.6); }
 .tp-body { display: grid; grid-template-columns: 16px minmax(0, 1fr) 16px; background: var(--tp-body); border-radius: 0 0 26px 26px; padding: 4px 6px 14px; }
 .tp-deadman { writing-mode: vertical-rl; border: 0; background: #1b1d20; color: #8a8f96; font: 700 8px var(--f-mono); letter-spacing: 0.1em; border-radius: 4px; margin: 60px 0; padding: 0; }
+.dmbig { display: block; width: 100%; margin: 6px 0; padding: 12px 10px; border-radius: 8px; border: 2px solid #1b1d20; background: #2a2d31; color: #f3f3f3; font: 700 14px var(--f-body); letter-spacing: .02em; cursor: pointer; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+.dmbig.on { background: #2fbf5f; border-color: #1d8a42; color: #08260f; }
+.jogguide { display: flex; flex-wrap: wrap; gap: 4px 6px; margin: 0 0 6px; padding: 0; list-style: none; font-size: 12.5px; }
+.jogguide li { padding: 3px 8px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel-2); color: var(--muted); }
+.jogguide li.done { background: var(--accent-soft); color: var(--ink); border-color: var(--accent); }
+.jogguide li.next { border-color: var(--warn); color: var(--ink); font-weight: 600; }
+#tp button, #tp .tpk { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: none; }
 .tp-deadman.on { background: #2fbf5f; color: #08260f; }
 .tp-face { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .tp-screen { background: var(--tp-screen); border: 6px solid #111; border-radius: 4px; color: #e8eefc; font: 11px/1.35 var(--f-mono); display: flex; flex-direction: column; height: 262px; }
@@ -266,7 +273,13 @@ dl.kv dt { color: var(--muted); } dl.kv dd { margin: 0; font-family: var(--f-mon
   #chapter { overflow: visible; }
   #side { max-height: none; } .tabpane { max-height: 75vh; }
   .modes { margin-left: 0; }
-  .tp { padding: 6px 0; } .tp-keys { grid-auto-rows: 30px; gap: 4px; }
+  .tp { padding: 6px 0; } .tp-keys { grid-auto-rows: 34px; gap: 4px; }
+  .tp-deadman { width: 26px; font-size: 10px; color: #cfd3d8; background: #3a3f45; }
+  /* Practice and Troubleshoot: the 3D view stays pinned at the top, the pendant comes right under it */
+  body:not([data-mode="learn"]) .main { grid-template-areas: "stage" "tp" "side"; }
+  body:not([data-mode="learn"]) #view3d { position: fixed; top: 0; left: 0; right: 0; height: 36vh; min-height: 210px; z-index: 30; border-radius: 0; }
+  body:not([data-mode="learn"]) { padding-top: max(36vh, 210px); }
+  body:not([data-mode="learn"]) #view3d .sbar #almLine, body:not([data-mode="learn"]) #view3d .vtools { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { .tp-switch .knob { transition: none; } }
 </style>
@@ -296,8 +309,10 @@ dl.kv dt { color: var(--muted); } dl.kv dd { margin: 0; font-family: var(--f-mon
     <section class="pane" id="tpPane" aria-label="Teach pendant">
       <div class="tpbar">
         <label><input type="checkbox" id="explainKeys"> Explain keys</label>
-        <span class="note" style="margin:0">ENABLE and SHIFT latch on click. Hold jog keys.</span>
+        <span class="note" style="margin:0">ENABLE and SHIFT latch on tap. Hold jog keys.</span>
       </div>
+      <button id="dmBig" class="dmbig" aria-pressed="false">ENABLING SWITCH (deadman): released · tap to hold</button>
+      <ol id="jogGuide" class="jogguide" aria-label="Steps to jog the robot"></ol>
       <div id="tp"></div>
       <div id="explain"></div>
     </section>
