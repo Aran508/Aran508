@@ -71,9 +71,16 @@ You diagnose each one with the pendant screens, I/O, the PLC ladder and the weld
 **Pro**: run and test your own programs with no hints, on one device or two.
 - *Both on this device:* pendant, cell and program tools side by side.
 - *Two devices:* open the page on both and choose Pro. On the screen that should show the robot, pick **Robot cell** and it shows a 6-digit code. On the other (a phone works well), pick **Teach pendant** and type the code; a link like `weld.html#pendant=123456` joins directly. The phone becomes the full pendant: every key you press drives the robot on the other screen, and the pendant screen mirrors the controller.
-- The two devices talk over a WebRTC data channel set up through the public PeerJS broker (peerjs.com); the simulation runs only on the robot screen.
+- Any two networks work (home Wi-Fi and mobile data, for example); nothing has to be on the same Wi-Fi. The pendant first tries a direct WebRTC link (set up through the public PeerJS broker, with its TURN relay). If that has not connected after a few seconds it switches to a relay, a public MQTT broker over a secure web socket (EMQX, then HiveMQ). The robot screen listens on both and says which one is in use. The simulation runs only on the robot screen.
+- The relay brokers are public: anyone who guesses a live 6-digit code could send keys to that simulated robot. Fine for training; do not reuse the idea for real equipment.
 - If the pendant link drops or goes quiet for 2 seconds, the robot stops jogging, pauses any program and releases the enabling switch, like a real pendant cable fault.
 - Both screens have full screen (⛶) and Esc.
+
+**Your own programs** (Practice and Pro):
+- Write them on the pendant (SELECT › CREATE, POINT, [INST], [EDCMD]) or as text in the **Program (.LS)** tab.
+- **Download .LS** saves every program to one file. **Import .LS…** loads a file, checks its syntax first, and replaces programs with the same name. **Share program link** copies a link that carries the selected program; opening it asks, then adds the program.
+- **PNS** on the operator panel is the PLC's program select: in AUTO, START runs the program chosen there.
+- **Reports › Path check** grades every run of any program: alarms (FAIL), joints within 5° of a limit, J5 near the wrist singularity, or the wire tip within 5 mm of the part or floor when not welding (CHECK), plus distance and top speed per line. The weld inspection below it still grades the cylinder seam.
 
 **Pause:** anything that runs on its own can be frozen with **Pause** on the 3D view or the **P** key, and cancelled with **Stop**. That covers the cell tour, the axis and frame demos, the lesson animations and the automatic weld. Robot Academy has the same Pause/Resume on its 3D view and next to *Watch it run*.
 

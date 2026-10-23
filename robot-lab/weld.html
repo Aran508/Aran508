@@ -210,6 +210,12 @@ dl.kv dt { color: var(--muted); } dl.kv dd { margin: 0; font-family: var(--f-mon
 .tp-estop.on { transform: scale(0.92); box-shadow: inset 0 3px 8px rgba(0,0,0,0.6); }
 .tp-body { display: grid; grid-template-columns: 16px minmax(0, 1fr) 16px; background: var(--tp-body); border-radius: 0 0 26px 26px; padding: 4px 6px 14px; }
 .tp-deadman { writing-mode: vertical-rl; border: 0; background: #1b1d20; color: #8a8f96; font: 700 8px var(--f-mono); letter-spacing: 0.1em; border-radius: 4px; margin: 60px 0; padding: 0; }
+.lsbtns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; } .lsbtns label.btn { cursor: pointer; }
+.psel { display: flex; align-items: center; gap: 4px; font: 600 11px var(--f-mono); color: var(--muted); }
+.psel select { font: 600 12px var(--f-mono); padding: 4px 6px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel-2); color: var(--ink); max-width: 130px; }
+.pc-verdict { display: inline-block; font-weight: 800; padding: 3px 12px; border-radius: 6px; letter-spacing: .05em; }
+.pc-verdict.pass { background: var(--ok); color: #062014; } .pc-verdict.warn { background: var(--warn); color: #2a1c00; } .pc-verdict.fail { background: var(--danger); color: #fff; }
+td.bad { color: var(--danger); font-weight: 700; } td.warnc { color: var(--warn); font-weight: 700; }
 .dmbig { display: block; width: 100%; margin: 6px 0; padding: 12px 10px; border-radius: 8px; border: 2px solid #1b1d20; background: #2a2d31; color: #f3f3f3; font: 700 14px var(--f-body); letter-spacing: .02em; cursor: pointer; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
 .dmbig.on { background: #2fbf5f; border-color: #1d8a42; color: #08260f; }
 .mission ol.steps { margin: 6px 0 2px; padding-left: 20px; font-size: 13px; line-height: 1.45; } .mission ol.steps li { margin: 3px 0; }
@@ -436,7 +442,7 @@ body.linked[data-mode="pro"][data-role="pendant"] .app { height: 100vh; grid-tem
           <button class="estop" id="panelEstop" aria-label="Controller E-stop">E-STOP</button><button class="btn small" id="faultReset">FAULT RESET</button></div>
         </div>
         <div class="opgrp"><span>Operator panel (PLC)</span>
-          <div class="row"><button class="pb g" id="b_start">START</button><button class="pb r" id="b_stop">STOP</button><button class="pb b" id="b_clamp">CLAMP</button><button class="pb y" id="b_unclamp">UNCLAMP</button></div>
+          <div class="row"><label class="psel" title="Program select (PNS): the PLC tells the robot which program START runs">PNS <select id="b_prog" aria-label="Program select"></select></label><button class="pb g" id="b_start">START</button><button class="pb r" id="b_stop">STOP</button><button class="pb b" id="b_clamp">CLAMP</button><button class="pb y" id="b_unclamp">UNCLAMP</button></div>
         </div>
         <div class="opgrp"><span>Cell</span>
           <div class="row"><button class="btn small" id="door">Open the door</button><button class="btn small" id="curtain">Reach through curtain</button><button class="btn small" id="newPart">New part</button>
@@ -452,7 +458,7 @@ body.linked[data-mode="pro"][data-role="pendant"] .app { height: 100vh; grid-tem
         <button data-tab="scenario" aria-selected="false">Troubleshoot</button>
         <button data-tab="program" aria-selected="false">Program (.LS)</button>
         <button data-tab="plc" aria-selected="false">PLC ladder</button>
-        <button data-tab="report" aria-selected="false">Weld report</button>
+        <button data-tab="report" aria-selected="false">Reports</button>
       </div>
       <div class="tabpane" id="tab_missions"></div>
       <div class="tabpane" id="tab_scenario" hidden></div>
@@ -460,7 +466,13 @@ body.linked[data-mode="pro"][data-role="pendant"] .app { height: 100vh; grid-tem
         <p class="note">The full program file. Edits on the pendant appear here, and edits here go back to the pendant.</p>
         <div id="lsErr"></div>
         <textarea id="lsText" spellcheck="false" aria-label="LS program text"></textarea>
-        <button class="btn small" id="lsRestore">Restore default programs</button>
+        <div class="lsbtns">
+          <button class="btn small" id="lsExport" title="Save all programs as one .LS file">Download .LS</button>
+          <label class="btn small" for="lsImport" title="Load programs from a .LS file (same names are replaced)">Import .LS…</label><input type="file" id="lsImport" accept=".ls,.LS,.txt,text/plain" hidden>
+          <button class="btn small" id="lsShare" title="Copy a link that carries the selected program">Share program link</button>
+          <button class="btn small" id="lsRestore">Restore default programs</button>
+        </div>
+        <p class="note" id="lsMsg"></p>
       </div>
       <div class="tabpane" id="tab_plc" hidden></div>
       <div class="tabpane" id="tab_report" hidden></div>

@@ -174,6 +174,7 @@ class WeldWorld {
 
   // ---------------------------------------------------------------- per-frame physics
   step(dt, ctl) {
+    this.simT = (this.simT || 0) + dt; // simulated seconds (the path check measures speed with it)
     for (const p of this.pulses) { p.t -= dt; if (p.t <= 0) this.dout[p.n] = false; }
     this.pulses = this.pulses.filter((p) => p.t > 0);
     // safety chain: new stop causes raise alarms immediately

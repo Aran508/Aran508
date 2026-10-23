@@ -23,9 +23,9 @@
       host.prepend(d);
       while (host.children.length > 40) host.removeChild(host.lastChild);
     },
-    onProgramsChanged() { programDirty = true; },
+    onProgramsChanged() { programDirty = true; progListDirty = true; },
     onSyntaxError(e) { this.log(`Program error, line ${e.line}: ${e.message}`, "error"); setTab("program"); },
-    onRunStart() { if (paused) setPaused(false); runInfo = { prog: tp.selected, mode: world.mode, weld: world.weldEnable, startBeads: world.part.beads.length }; },
+    onRunStart() { if (paused) setPaused(false); startPathRun(); runInfo = { prog: tp.selected, mode: world.mode, weld: world.weldEnable, startBeads: world.part.beads.length }; },
     explainKey(k) { const d = TP_KEYS[k]; if (!d) return; $("explain").innerHTML = `<b>${esc(d.label)}</b> <span class="grp">${esc(d.group)}</span><p>${esc(d.text)}</p>`; },
     onKey(k) { /* used by missions */ },
     openLearn(id) { setMode("learn"); const i = CHAPTERS.findIndex((c) => c.id === id); if (i >= 0) setChapter(i); },
@@ -39,6 +39,7 @@
       world.plc.M.M1 = false; world.part.clampPos = 0;
       world.alarms = []; world.servoOn = true;
       tp.selected = "CYL_WELD"; tp.step = false; tp.cur = { line: 0, field: -1 };
+      syncProgSelect(); $("b_prog").value = "CYL_WELD";
       tp.ovrIdx = OVR_STEPS.indexOf(100); tp.applyOverride(); // production runs at 100% override
       world.timeLapse = +$("lapse").value || 4;
       syncOps();
@@ -61,7 +62,7 @@
     damagePoint() { const p = tp.progs.find((x) => x.name === "CYL_WELD"); if (p && p.points[3]) { p.points[3].z -= 25; tp.changed(); } },
     restorePoint() { const p = tp.progs.find((x) => x.name === "CYL_WELD"); const d = TPStore.defaults()[0]; if (p) { p.points[3] = d.points[3]; tp.changed(); } },
   };
-  let opQueue = [], opClock = 0, runInfo = null, programDirty = true;
+  let opQueue = [], opClock = 0, runInfo = null, programDirty = true, progListDirty = true;
 
   const view = new PendantView($("tp"), { onKey: (k) => tp.key(k), onKeyUp: (k) => tp.keyUp(k) });
   const tp = new TPController({ world, ctl, view, app });
@@ -454,7 +455,72 @@
       catch (e) { $("lsErr").textContent = `Line ${e.line}: ${e.message}`; }
     }, 500);
   });
-  $("lsRestore").addEventListener("click", () => { tp.progs = TPStore.defaults(); tp.selected = "CYL_WELD"; tp.changed(); syncProgramText(true); app.log("Programs restored to the defaults.", "info"); });
+  // ---- program files: download, import, and share one program as a link ----
+  const lsMsg = (t, kind) => { const el = $("lsMsg"); el.textContent = t; el.style.color = kind === "error" ? "var(--danger)" : ""; };
+  function mergePrograms(list) {
+    for (const p of list) { const i = tp.progs.findIndex((q) => q.name === p.name); if (i >= 0) tp.progs[i] = p; else tp.progs.push(p); }
+    tp.changed(); syncProgramText(true); syncProgSelect();
+  }
+  function checkedPrograms(text) {
+    LANGS.fanuc.parse(text); // throws with a line number on a syntax error
+    const list = TPStore.parseLS(text);
+    if (!list.length) throw new Error("No /PROG found in the file.");
+    return list;
+  }
+  $("lsExport").addEventListener("click", () => {
+    const { text } = TPStore.serialize(tp.progs);
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([text], { type: "text/plain" })); a.download = "weldcell-programs.ls";
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    lsMsg(`Saved ${tp.progs.length} programs as weldcell-programs.ls.`);
+  });
+  $("lsImport").addEventListener("change", async (e) => {
+    const f = e.target.files && e.target.files[0]; e.target.value = "";
+    if (!f) return;
+    try {
+      const list = checkedPrograms(await f.text());
+      mergePrograms(list);
+      lsMsg(`Imported ${list.map((p) => p.name).join(", ")} from ${f.name}.`); app.log(`Programs imported: ${list.map((p) => p.name).join(", ")}.`, "msg");
+    } catch (err) { lsMsg(`Not imported: ${err.line ? "line " + err.line + ": " : ""}${err.message}`, "error"); }
+  });
+  const b64url = (bytes) => btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const unb64url = (s) => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0));
+  async function packText(text) {
+    const raw = new TextEncoder().encode(text);
+    if (!window.CompressionStream) return "t" + b64url(raw);
+    const z = new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(new CompressionStream("deflate-raw"))).arrayBuffer());
+    return "z" + b64url(z);
+  }
+  async function unpackText(s) {
+    const bytes = unb64url(s.slice(1));
+    if (s[0] === "t") return new TextDecoder().decode(bytes);
+    return new TextDecoder().decode(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw"))).arrayBuffer());
+  }
+  $("lsShare").addEventListener("click", async () => {
+    const p = tp.prog, link = location.href.split("#")[0].split("?")[0] + "#prog=" + (await packText(TPStore.serialize([p]).text));
+    try { await navigator.clipboard.writeText(link); lsMsg(`Link for ${p.name} copied. Anyone who opens it gets ${p.name} added to their programs.`); }
+    catch (e) { window.prompt(`Copy this link to share ${p.name}:`, link); }
+  });
+  async function openSharedProgram() {
+    const m = location.hash.match(/^#prog=([A-Za-z0-9_-]+)/); if (!m) return;
+    history.replaceState(null, "", location.href.split("#")[0]);
+    try {
+      const list = checkedPrograms(await unpackText(m[1]));
+      if (!window.confirm(`Add the shared program ${list.map((p) => p.name).join(", ")} to your programs? A program with the same name is replaced.`)) return;
+      mergePrograms(list); tp.selected = list[0].name; tp.cur.line = 0;
+      if (mode === "learn") setMode("practice");
+      setTab("program"); lsMsg(`Shared program ${list[0].name} added. Select it on the pendant (SELECT) or with PNS on the operator panel.`);
+      app.log(`Shared program ${list[0].name} added.`, "msg");
+    } catch (e) { app.log(`The shared program link could not be read: ${e.message}`, "error"); }
+  }
+  // the operator panel's program select (PNS) lists the programs in order
+  function syncProgSelect() {
+    const sel = $("b_prog"), cur = sel.value || "CYL_WELD", names = tp.progs.map((p) => p.name);
+    sel.innerHTML = names.map((n, i) => `<option value="${esc(n)}">${String(i + 1).padStart(4, "0")} ${esc(n)}</option>`).join("");
+    sel.value = names.includes(cur) ? cur : names[0];
+    progListDirty = false;
+  }
+  $("lsRestore").addEventListener("click", () => { tp.progs = TPStore.defaults(); tp.selected = "CYL_WELD"; tp.changed(); syncProgramText(true); syncProgSelect(); app.log("Programs restored to the defaults.", "info"); });
 
   // PLC ladder (SVG)
   const LW = 720, RH = 84;
@@ -505,6 +571,57 @@
     const s = document.getElementById("scanNo"); if (s) s.textContent = "#" + w.plc.scans;
   }
 
+  // ---- path check: records every run of any program and grades the path itself ----
+  let pathRun = null;
+  function startPathRun() {
+    pathRun = { prog: tp.selected, mode: world.mode, lapse: world.timeLapse || 1, lines: new Map(), alarms: [], last: null, done: false, ended: "" };
+  }
+  function pathLine() { const i = tp.execIdx(); return i >= 0 ? i : 0; }
+  world.on("moved", (p) => {
+    const r = pathRun; if (!r || r.done || !ctl.running) return;
+    const i = pathLine(), t = world.simT || 0;
+    let L = r.lines.get(i);
+    if (!L) { L = { n: i + 1, text: (tp.prog.lines[i] || "").trim(), dist: 0, vmax: 0, jm: Infinity, jmAxis: 0, j5: Infinity, clear: Infinity, arc: false }; r.lines.set(i, L); }
+    if (r.last) {
+      const d = Vec.len(Vec.sub(p, r.last.p)), dt = t - r.last.t;
+      L.dist += d;
+      if (dt > 1e-4) L.vmax = Math.max(L.vmax, d / dt / r.lapse);
+    }
+    r.last = { p: p.slice(), t };
+    world.q.forEach((v, k) => { const [lo, hi] = ARM.limits[k], m = Math.min(v - lo, hi - v); if (m < L.jm) { L.jm = m; L.jmAxis = k + 1; } });
+    L.j5 = Math.min(L.j5, Math.abs(world.q[4]));
+    // clearance from the wire tip to the floor and to the part surface (tube and CEC are both Ø65)
+    const P = world.partPose(), l = Mat.mv(Mat.tr(P.R), Vec.sub(p, P.p));
+    let c = p[2];
+    if (l[1] > WELD.seamY - WELD.drawing.pinFromSeam - 30 && l[1] < WELD.tubeY1 + 30) c = Math.min(c, Math.hypot(l[0], l[2]) - WELD.R);
+    L.clear = Math.min(L.clear, c);
+    if (world.arc.phase === "on") L.arc = true;
+  });
+  world.on("alarm", (a) => { if (a && pathRun && !pathRun.done && a.code !== "SRVO-065") pathRun.alarms.push({ code: a.code, text: a.text, n: pathLine() + 1 }); });
+  world.on("fault", (e) => { if (pathRun && !pathRun.done && e && e.msg) { pathRun.alarms.push({ code: e.code || "ERROR", text: e.msg, n: pathLine() + 1 }); pathRun.done = true; pathRun.ended = "fault"; renderReport(); } });
+  world.on("done", () => { if (pathRun && !pathRun.done) { pathRun.done = true; pathRun.ended = "end"; renderReport(); } });
+  function pathHtml() {
+    const r = pathRun;
+    if (!r) return `<h3>Path check</h3><p class="note">Run any program (STEP, FWD in T1/T2, or START in AUTO) and this checks its path: reach and joint limits, the wrist singularity, clearance to the part and the floor, speed per line, and alarms.</p>`;
+    const rows = [...r.lines.values()].filter((L) => L.dist > 0.5).sort((a, b) => a.n - b.n);
+    const warns = [];
+    for (const L of rows) {
+      if (L.jm < 5) warns.push(`Line ${L.n}: J${L.jmAxis} within ${L.jm.toFixed(1)}° of its limit`);
+      if (L.j5 < 3) warns.push(`Line ${L.n}: J5 at ${L.j5.toFixed(1)}°, close to the wrist singularity`);
+      if (!L.arc && L.clear < 5) warns.push(`Line ${L.n}: only ${Math.max(0, L.clear).toFixed(1)} mm from the part or floor while not welding`);
+    }
+    const fail = r.alarms.length > 0, verdict = fail ? "fail" : warns.length ? "warn" : "pass";
+    const state = r.done ? (r.ended === "end" ? "finished" : "stopped by a fault") : "running…";
+    const td = (v, bad, warn, f) => `<td class="${bad ? "bad" : warn ? "warnc" : ""}">${f(v)}</td>`;
+    return `<h3>Path check · ${esc(r.prog)} <small>(${r.mode}, ${state})</small></h3>
+      <span class="pc-verdict ${verdict}">${{ pass: "PASS", warn: "CHECK", fail: "FAIL" }[verdict]}</span>
+      ${r.alarms.length ? `<h4>Alarms</h4><table class="t"><tr><th>Line</th><th>Alarm</th></tr>${r.alarms.map((a) => `<tr><td>${a.n}</td><td><code>${esc(a.code)}</code> ${esc(a.text || "")}</td></tr>`).join("")}</table>` : ""}
+      ${warns.length ? `<h4>Check these</h4><ul>${warns.slice(0, 10).map((w) => `<li>${esc(w)}</li>`).join("")}</ul>` : ""}
+      <h4>Motion by line</h4>${rows.length ? `<table class="t"><tr><th>Line</th><th>Instruction</th><th>mm</th><th>max mm/s</th><th>joint margin</th><th>|J5|</th><th>clearance</th></tr>
+      ${rows.map((L) => `<tr><td>${L.n}</td><td><code>${esc(L.text.slice(0, 34))}</code>${L.arc ? " <small>(arc)</small>" : ""}</td><td>${L.dist.toFixed(0)}</td><td>${L.vmax.toFixed(0)}</td>${td(L.jm, L.jm < 2, L.jm < 5, (v) => v.toFixed(1) + "° J" + L.jmAxis)}${td(L.j5, L.j5 < 1, L.j5 < 3, (v) => v.toFixed(1) + "°")}${td(L.clear, !L.arc && L.clear < 0, !L.arc && L.clear < 5, (v) => (v > 2000 ? "–" : v.toFixed(0) + " mm"))}</tr>`).join("")}</table>` : `<p class="note">No motion recorded yet.</p>`}
+      <p class="note">Speeds are at the override used for the run (${Math.round(world.override * 100)}% now). Clearance is from the wire tip to the part surface or the floor; on welding lines it is meant to be about 0.</p>`;
+  }
+
   // weld report
   function renderReport() {
     const r = world.inspect();
@@ -514,12 +631,12 @@
     const map = bins.map((g, i) => `<rect x="${i * 3}" y="0" width="3" height="24" fill="${g ? col[g] : "var(--line)"}"/>`).join("");
     const names = { missing: "Not welded", porosity: "Porosity", lof: "Lack of fusion (off seam)", undercut: "Undercut (off centre)", fast: "Too fast (narrow, cold)", slow: "Too slow (excess, burn-through risk)", stickout: "Wrong stand-off (unstable arc)", underfill: "Underfill (groove not full)", overfill: "Overfill (excess crown)" };
     const avg = world.part.beads.length ? world.part.beads.reduce((s, b) => s + b.speed, 0) / world.part.beads.length : 0;
-    $("tab_report").innerHTML = world.part.beads.length === 0
+    $("tab_report").innerHTML = pathHtml() + "<h3>Weld inspection</h3>" + (world.part.beads.length === 0
       ? `<p class="note">No weld on this part yet. Run CYL_WELD with WELD ENBL on (dry runs leave no bead). After the weld, this report shows coverage and defects by position around the seam.</p>`
       : `<div class="verdict ${r.pass ? "pass" : "fail"}">${r.pass ? "PASS" : "FAIL"}</div>
          <dl class="kv"><dt>Seam coverage</dt><dd>${(r.coverage * 100).toFixed(1)}%</dd><dt>Bead samples</dt><dd>${r.samples}</dd><dt>Mean travel speed</dt><dd>${avg.toFixed(1)} mm/s</dd><dt>Schedule</dt><dd>${esc(WELD.schedules[world.arc.sched].name)}</dd></dl>
          <h4>Seam map, 0° to 360°</h4><svg viewBox="0 0 540 24" class="seam" preserveAspectRatio="none">${map}</svg><div class="seamax"><span>0°</span><span>90°</span><span>180°</span><span>270°</span><span>360°</span></div>
-         <h4>Findings</h4>${r.defects.length ? `<table class="t"><tr><th>Position</th><th>Finding</th><th>Detail</th></tr>${r.defects.slice(0, 12).map((d) => `<tr><td>${d.from}°–${d.to}°</td><td>${esc(names[d.grade] || d.grade)}</td><td>${esc(d.note || "")}</td></tr>`).join("")}</table>` : "<p>No defects found. The bead is continuous, centred and overlapped.</p>"}`;
+         <h4>Findings</h4>${r.defects.length ? `<table class="t"><tr><th>Position</th><th>Finding</th><th>Detail</th></tr>${r.defects.slice(0, 12).map((d) => `<tr><td>${d.from}°–${d.to}°</td><td>${esc(names[d.grade] || d.grade)}</td><td>${esc(d.note || "")}</td></tr>`).join("")}</table>` : "<p>No defects found. The bead is continuous, centred and overlapped.</p>"}`);
   }
 
   // ---------------------------------------------------------------- status bar
@@ -573,7 +690,12 @@
     }
     if (world.plc.startEdge) {
       world.plc.startEdge = false;
-      if (world.mode === "AUTO" && world.robotReady && !ctl.running) { tp.selected = tp.selected || "CYL_WELD"; tp.cur.line = 0; tp.runFrom(0, false); app.log(`PLC START: running ${tp.selected} in AUTO.`, "msg"); }
+      if (world.mode === "AUTO" && world.robotReady && !ctl.running) {
+        // the PLC's program select (PNS) decides what START runs
+        const pick = $("b_prog").value, i = tp.progs.findIndex((p) => p.name === pick);
+        tp.selected = i >= 0 ? pick : "CYL_WELD"; tp.cur.line = 0; tp.runFrom(0, false);
+        app.log(`PLC START: PNS${String(Math.max(0, i) + 1).padStart(4, "0")} → running ${tp.selected} in AUTO.`, "msg");
+      }
     }
     if (lastArc === "on" && world.arc.phase !== "on") { renderReport(); const r = world.inspect(); app.log(`Weld finished: ${r.pass ? "PASS" : "FAIL"}, coverage ${(r.coverage * 100).toFixed(0)}%.`, r.pass ? "msg" : "warn"); }
     lastArc = world.arc.phase;
@@ -586,10 +708,11 @@
     if (slowT > 0.25) {
       slowT = 0;
       if (activeTab === "plc" && mode !== "learn") updateLadder();
-      if (activeTab === "report" && world.arc.phase === "on") renderReport();
+      if (activeTab === "report" && (world.arc.phase === "on" || (pathRun && !pathRun.done))) renderReport();
       if (programDirty && activeTab === "program") syncProgramText(false);
       else if (programDirty) { store.set("programs", TPStore.serialize(tp.progs).text); programDirty = false; }
       checkMissions();
+      if (progListDirty && document.activeElement !== $("b_prog")) syncProgSelect();
     }
     requestAnimationFrame(frame);
   }
@@ -620,6 +743,7 @@
   setMode(location.hash === "#practice" ? "practice" : location.hash === "#trouble" ? "trouble" : /^#(pro|pendant=)/.test(location.hash) ? "pro" : mode);
   setTab(mode === "trouble" ? "scenario" : "missions");
   app.log("Welcome. Learn the cell, practise on the pendant, then troubleshoot real faults.", "msg");
+  syncProgSelect(); openSharedProgram();
   requestAnimationFrame(frame);
   window.__weld = { world, ctl, tp, app, scene, view, toggleFs, setTab, setMode, setChapter, startScenario, demoWeld, setPaused, stopAll, get paused() { return paused; } };
 })();
