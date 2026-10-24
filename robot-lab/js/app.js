@@ -438,9 +438,13 @@
     const k = world.override * dt * j.sign;
     try {
       if (app.jogMode === "joint") {
-        const q = world.q.slice(); q[j.i] += 30 * k;
-        const [lo, hi] = ARM.limits[j.i];
-        if (q[j.i] < lo || q[j.i] > hi) throw new RobotError(`Axis ${j.i + 1} is at its limit.`, 0);
+        // jog in the brand's own joint values (FANUC: J3 from the horizontal, so J2 alone keeps the forearm level)
+        let q = world.q.slice();
+        const LB = LANGS[brand];
+        if (LB.jointsToInternal) { const f = LB.jointValues(q).slice(); f[j.i] += 30 * k; q = LB.jointsToInternal(f); }
+        else q[j.i] += 30 * k;
+        const bad = q.findIndex((v, i) => v < ARM.limits[i][0] || v > ARM.limits[i][1]);
+        if (bad >= 0) throw new RobotError(`Axis ${bad === j.i ? j.i + 1 : `${bad + 1} (moved by J${j.i + 1})`} is at its limit.`, 0);
         world.setJoints(q, "J", 0);
       } else {
         const T = world.tcpWorld();

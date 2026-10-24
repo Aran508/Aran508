@@ -100,7 +100,7 @@
     if (get("J1", "deg") !== null) {
       const j = [1, 2, 3, 4, 5, 6].map((k) => get("J" + k, "deg"));
       if (j.some((x) => x === null)) throw new ParseError("Joint position needs J1 to J6.", line);
-      v = Conv.jdeg(j);
+      v = Conv.jfanuc(j); // FANUC J1-J6 as shown on the pendant (J3 from the horizontal)
     } else {
       const c = ["X", "Y", "Z"].map((k) => get(k, "mm")).concat(["W", "P", "R"].map((k) => get(k, "deg")));
       if (c.some((x) => x === null)) throw new ParseError(`P[${h[1]}] needs X, Y, Z (mm) and W, P, R (deg).`, line);
@@ -335,7 +335,7 @@
         const tag = `P[${i + 1}:"${n.toUpperCase().slice(0, 12)}"]{`;
         out.push(tag, "   GP1:");
         if (r.joints && r.joints[n]) {
-          const j = r.joints[n];
+          const j = FANUC_AXIS.fromInternal(r.joints[n]);
           out.push("\tUF : 0, UT : 1,");
           out.push(`\tJ1=  ${j[0].toFixed(3)} deg,\tJ2=  ${j[1].toFixed(3)} deg,\tJ3=  ${j[2].toFixed(3)} deg,`);
           out.push(`\tJ4=  ${j[3].toFixed(3)} deg,\tJ5=  ${j[4].toFixed(3)} deg,\tJ6=  ${j[5].toFixed(3)} deg`);
@@ -358,7 +358,8 @@
     id: "fanuc", brand: "FANUC", lang: "TP", file: "PICK_PLACE.LS",
     robot: { body: "#f2c21b", trim: "#2b2b2b", label: "FANUC-style 6-axis arm" },
     jointNames: ["J1", "J2", "J3", "J4", "J5", "J6"],
-    jointValues: (q) => q,
+    jointValues: (q) => FANUC_AXIS.fromInternal(q),
+    jointsToInternal: (f) => FANUC_AXIS.toInternal(f),
     outName: (n) => `DO[${n}]`, inName: (n) => `DI[${n}]`,
     poseFields(P) { const e = Rot.toFixedXYZ(P.R); return [["X", fmt(P.p[0])], ["Y", fmt(P.p[1])], ["Z", fmt(P.p[2])], ["W", fmt(e[0])], ["P", fmt(e[1])], ["R", fmt(e[2])]]; },
     teach(name, P, frame) {

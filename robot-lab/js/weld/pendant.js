@@ -47,18 +47,18 @@ const TP_KEYS = {
   posn: { label: "POSN", group: "Screens", text: "Current position: joint angles (JNT), or X Y Z W P R in the user (USER) or world (WORLD) frame, plus the positioner axis E1." },
   io: { label: "I/O", group: "Screens", text: "Digital inputs and outputs. Watch DI/DO change live, simulate an input (SIM) to test logic, or force an output ON/OFF in T1." },
   status: { label: "STATUS", group: "Screens", text: "Controller status: mode, servo state, program, line, override, frames, weld enable." },
-  jx1m: { label: "−X (J1)", group: "Jog", text: "Jog key. JOINT: axis J1 negative. WORLD/USER: −X. TOOL: −X of the torch. Needs SHIFT + enabling switch." },
-  jx1p: { label: "+X (J1)", group: "Jog", text: "Jog key. JOINT: J1 positive (waist). WORLD/USER/TOOL: +X." },
-  jy2m: { label: "−Y (J2)", group: "Jog", text: "Jog key. JOINT: J2 negative (shoulder back). Cartesian: −Y." },
-  jy2p: { label: "+Y (J2)", group: "Jog", text: "Jog key. JOINT: J2 positive (shoulder forward). Cartesian: +Y." },
-  jz3m: { label: "−Z (J3)", group: "Jog", text: "Jog key. JOINT: J3 negative. Cartesian: −Z (down in WORLD, along the torch in TOOL)." },
-  jz3p: { label: "+Z (J3)", group: "Jog", text: "Jog key. JOINT: J3 positive. Cartesian: +Z." },
-  jx4m: { label: "−X (J4)", group: "Jog", text: "Rotation jog. JOINT: J4 negative. Cartesian: rotate about X (W angle)." },
-  jx4p: { label: "+X (J4)", group: "Jog", text: "Rotation jog. JOINT: J4 positive. Cartesian: rotate about X." },
-  jy5m: { label: "−Y (J5)", group: "Jog", text: "Rotation jog. JOINT: J5 negative. Cartesian: rotate about Y (P angle)." },
-  jy5p: { label: "+Y (J5)", group: "Jog", text: "Rotation jog. JOINT: J5 positive." },
-  jz6m: { label: "−Z (J6)", group: "Jog", text: "Rotation jog. JOINT: J6 negative. Cartesian: rotate about Z (R angle)." },
-  jz6p: { label: "+Z (J6)", group: "Jog", text: "Rotation jog. JOINT: J6 positive." },
+  jx1m: { label: "−X (J1)", group: "Jog", text: "Jog key. JOINT: J1 negative (waist turns clockwise seen from above). WORLD / USER: TCP straight along −X. TOOL: along the torch's −X. Needs SHIFT + enabling switch." },
+  jx1p: { label: "+X (J1)", group: "Jog", text: "Jog key. JOINT: J1 positive (waist turns counter-clockwise seen from above). WORLD / USER: +X (in this cell, forward towards the positioner). TOOL: the torch's +X." },
+  jy2m: { label: "−Y (J2)", group: "Jog", text: "Jog key. JOINT: J2 negative (upper arm leans back). On FANUC the forearm keeps its angle while J2 moves, because J3 is measured from the horizontal. WORLD / USER: −Y (to the robot's right). TOOL: the torch's −Y." },
+  jy2p: { label: "+Y (J2)", group: "Jog", text: "Jog key. JOINT: J2 positive (upper arm leans forward, forearm keeps its angle). WORLD / USER: +Y (to the robot's left). TOOL: the torch's +Y." },
+  jz3m: { label: "−Z (J3)", group: "Jog", text: "Jog key. JOINT: J3 negative (forearm tilts down). WORLD / USER: TCP straight down. TOOL: −Z backs the torch away from the work along its own axis." },
+  jz3p: { label: "+Z (J3)", group: "Jog", text: "Jog key. JOINT: J3 positive (forearm tilts up). WORLD / USER: straight up. TOOL: +Z drives the torch towards the work along its own axis." },
+  jx4m: { label: "−X↻ (J4)", group: "Jog", text: "Rotation key. JOINT: J4 negative (forearm roll). WORLD / USER / TOOL: the tool turns about the X axis (W angle) around the TCP, which stays put." },
+  jx4p: { label: "+X↻ (J4)", group: "Jog", text: "Rotation key. JOINT: J4 positive. WORLD / USER / TOOL: turn about the X axis (W) around the TCP." },
+  jy5m: { label: "−Y↻ (J5)", group: "Jog", text: "Rotation key. JOINT: J5 negative (wrist bends down). WORLD / USER / TOOL: turn about the Y axis (P angle) around the TCP." },
+  jy5p: { label: "+Y↻ (J5)", group: "Jog", text: "Rotation key. JOINT: J5 positive (wrist bends up). WORLD / USER / TOOL: turn about the Y axis (P) around the TCP." },
+  jz6m: { label: "−Z↻ (J6)", group: "Jog", text: "Rotation key. JOINT: J6 negative (flange roll). WORLD / USER / TOOL: turn about the Z axis (R angle) around the TCP." },
+  jz6p: { label: "+Z↻ (J6)", group: "Jog", text: "Rotation key. JOINT: J6 positive. WORLD / USER / TOOL: turn about the Z axis (R) around the TCP." },
 };
 
 // grid placement [key, column, row, class]
@@ -102,8 +102,8 @@ class PendantView {
       const b = document.createElement("button");
       b.className = "tpk " + cls; b.dataset.k = k;
       b.style.gridColumn = c; b.style.gridRow = r;
-      const lab = def.label.match(/^([−+]?[XYZ]) \((J\d)\)$/);
-      b.innerHTML = lab ? `<b>${lab[1]}</b><small>(${lab[2]})</small>` : def.label.replace(" / ", "<br>").replace("BACK SPACE", "BACK<br>SPACE").replace("WELD ENBL", "WELD<br>ENBL");
+      const lab = def.label.match(/^([−+]?[XYZ])(↻?) \((J\d)\)$/);
+      b.innerHTML = lab ? `<b>${lab[1]}${lab[2] ? '<i class="rot" aria-hidden="true">↻</i>' : ""}</b><small>(${lab[3]})</small>` : def.label.replace(" / ", "<br>").replace("BACK SPACE", "BACK<br>SPACE").replace("WELD ENBL", "WELD<br>ENBL");
       b.setAttribute("aria-label", def.label);
       grid.appendChild(b);
       (this.keyEls[k] = this.keyEls[k] || []).push(b);

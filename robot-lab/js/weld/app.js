@@ -69,6 +69,11 @@
   app.tp = tp;
   const saved = store.get("programs", null);
   if (saved) tp.loadText(saved);
+  // programs saved before the FANUC axis convention (J3 from the horizontal, J3+/J5+ up) stored raw model angles
+  if (store.get("jointConv", "") !== "fanuc1") {
+    if (saved) { for (const p of tp.progs) for (const P of Object.values(p.points || {})) if (P.joint) P.joint = FANUC_AXIS.fromInternal(P.joint).map((v) => +v.toFixed(3)); store.set("programs", TPStore.serialize(tp.progs).text); }
+    store.set("jointConv", "fanuc1");
+  }
 
   // ---------------------------------------------------------------- world events
   world.on("log", (m, k) => app.log(m, k));
@@ -249,7 +254,8 @@
       }
     } else if (demo.kind === "axes" && !ctl.running) {
       const k = Math.floor(demo.t / 3) % 6, ph = (demo.t % 3) / 3;
-      const q = WELD.homeQ.slice(); q[k] += Math.sin(ph * Math.PI * 2) * [40, 20, 20, 60, 40, 90][k];
+      const f = FANUC_AXIS.fromInternal(WELD.homeQ); f[k] += Math.sin(ph * Math.PI * 2) * [40, 20, 20, 60, 40, 90][k];
+      const q = FANUC_AXIS.toInternal(f); // FANUC axes: J2 alone keeps the forearm's angle
       try { world.setJoints(q, "J", 0); } catch (e) { /* demo only */ }
       scene.highlight(["axis1", "axis2", "axis3", "axis4", "axis5", "axis6"][k]);
       caption(`J${k + 1}: ${["waist", "shoulder", "elbow", "forearm roll", "wrist bend", "flange roll"][k]}`);

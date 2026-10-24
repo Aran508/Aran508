@@ -20,6 +20,11 @@ const clonePose = (P) => ({ type: "pose", p: P.p.slice(), R: P.R.slice(), frame:
 
 // KUKA counts A2/A3 from its own zero (arm upright = A2 -90, A3 +90)
 const KUKA_AXIS = { toInternal: (a) => [a[0], a[1] + 90, a[2] - 90, a[3], a[4], a[5]], fromInternal: (q) => [q[0], q[1] - 90, q[2] + 90, q[3], q[4], q[5]] };
+// FANUC axis convention: J3 is measured from the horizontal, not from the upper arm (the J2/J3 interaction),
+// and J3+ raises the forearm, J5+ bends the wrist up. So J2 = J3 = 0 is upper arm vertical, forearm level,
+// and 0, 0, 0, 0, -90, 0 points the tool straight down. The shared model measures J3 from the upper arm and
+// tilts J3+/J5+ down, so FANUC values are converted at the language boundary.
+const FANUC_AXIS = { toInternal: (f) => [f[0], f[1], -f[2] - f[1], f[3], -f[4], f[5]], fromInternal: (q) => [q[0], q[1], -(q[1] + q[2]), q[3], -q[4], q[5]] };
 // KUKA tools point along the flange X axis; the simulator's tools point along Z.
 const KUKA_TOOL_FIX = Mat.ry(Math.PI / 2);
 const YAS_PULSE_PER_DEG = 1000; // simulator convention, documented in the Yaskawa lessons
@@ -34,6 +39,7 @@ const Conv = {
   jdeg: (v) => Joints.make(v),
   jrad: (v) => Joints.make(v.map((x) => x / DEG)),
   jkuka: (v) => Joints.make(KUKA_AXIS.toInternal(v)),
+  jfanuc: (v) => Joints.make(FANUC_AXIS.toInternal(v)),
   jpulse: (v) => Joints.make(v.map((x) => x / YAS_PULSE_PER_DEG)),
 };
 

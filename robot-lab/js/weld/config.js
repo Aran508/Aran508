@@ -159,7 +159,7 @@ const TPStore = (() => {
           "DO[2:WELD DONE]=PULSE,1.0sec",
         ],
         points: {
-          1: { comment: "HOME", joint: WELD.homeQ.slice(), uf: 0, ut: 1, e1: 0 },
+          1: { comment: "HOME", joint: FANUC_AXIS.fromInternal(WELD.homeQ).map((v) => +v.toFixed(3)), uf: 0, ut: 1, e1: 0 }, // J1-J6 as the FANUC pendant shows them
           2: cart(WELD.pts.approach, { comment: "APPROACH", e1: 0 }),
           3: cart(WELD.pts.start, { comment: "WELD START", e1: 0 }),
           4: cart(WELD.pts.start, { comment: "WELD END", e1: WELD.weldTurn }),

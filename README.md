@@ -88,7 +88,7 @@ Alarm codes follow FANUC naming. Texts vary by controller version, so use your c
 
 ## Honest simplifications
 
-- One kinematic model is shared by every brand so lesson coordinates match. Joint zero conventions are converted for KUKA, and URScript joint lists are read in this model's zero.
+- One kinematic model is shared by every brand so lesson coordinates match. Joint conventions are converted at the language boundary: KUKA's zero offsets, and FANUC's axes, where J3 is measured from the horizontal (the J2/J3 interaction: jogging J2 keeps the forearm's angle) and J3+ / J5+ tilt up, so 0, 0, 0, 0, −90, 0 is forearm level with the tool pointing down. URScript joint lists are read in this model's zero.
 - FANUC `CNT` and Yaskawa `PL` are mapped to approximate blend distances. Yaskawa pulse counts use 1000 pulses per degree.
 - Supported instructions are a teaching subset of each language. No threads, interrupts or force control.
 

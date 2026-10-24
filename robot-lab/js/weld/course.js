@@ -71,8 +71,18 @@ const CHAPTERS = [
     lead: "When you press +X, which X? The COORD key decides.",
     body: `<ul><li><b>JOINT</b>: each key turns one axis (J1 to J6). Use it to get out of awkward postures or singularities.</li><li><b>WORLD</b>: X, Y, Z of the cell, with the origin at the robot base. +Z is always up.</li><li><b>TOOL</b>: axes fixed to the torch. +Z pushes along the torch towards the wire tip. Ideal for approaching the joint.</li><li><b>USER</b>: a frame you taught on the fixture or positioner. Points taught in a user frame move with it.</li></ul>
 <p>Rotation keys (J4 to J6 rows) turn the torch about the chosen frame's X (W), Y (P) and Z (R) axes <b>around the TCP</b>, so the wire tip stays put. That only works if the TCP is taught correctly.</p>
+<h4>The jog keys on a FANUC pendant</h4>
+<table class="t"><tr><th>Key row</th><th>JOINT</th><th>WORLD / USER</th><th>TOOL</th></tr>
+<tr><td>−X / +X (J1)</td><td>J1 waist: + turns counter-clockwise seen from above</td><td>straight along X (here + is towards the positioner)</td><td>along the torch's X</td></tr>
+<tr><td>−Y / +Y (J2)</td><td>J2 shoulder: + leans the upper arm forward</td><td>straight along Y (+ is to the robot's left)</td><td>along the torch's Y</td></tr>
+<tr><td>−Z / +Z (J3)</td><td>J3 elbow: + tilts the forearm up</td><td>straight down / up</td><td>+Z drives the torch towards the work, −Z backs it out</td></tr>
+<tr><td>−X↻ / +X↻ (J4)</td><td>J4 forearm roll</td><td colspan="2">turn about X (W) around the TCP</td></tr>
+<tr><td>−Y↻ / +Y↻ (J5)</td><td>J5 wrist: + bends up</td><td colspan="2">turn about Y (P) around the TCP</td></tr>
+<tr><td>−Z↻ / +Z↻ (J6)</td><td>J6 flange roll</td><td colspan="2">turn about Z (R) around the TCP</td></tr></table>
+<p><b>FANUC J2/J3 interaction.</b> FANUC measures J3 from the horizontal, not from the upper arm. So J2 = 0 and J3 = 0 means upper arm vertical and forearm level, and when you jog J2 alone the forearm keeps its angle: only J3 tilts it. The tool points straight down at J5 = −90 with J3 = 0, which is why a FANUC home is often 0, 0, 0, 0, −90, 0. This trainer follows that convention on the pendant, in POSN and in the .LS file. Other makers (ABB, KUKA, Yaskawa) measure their axis 3 from the upper arm, so the same arm pose has different numbers.</p>
 <p>Press <b>Show in cell</b>: the arm moves along WORLD X, then TOOL Z, so you can compare.</p>`,
-    quiz: [{ q: "You want to back the torch straight out of the joint along its own axis. Which COORD?", o: ["JOINT", "WORLD", "TOOL", "USER"], a: 2, why: "In TOOL, −Z moves along the torch axis away from the work, whatever the torch angle." }] },
+    quiz: [{ q: "You want to back the torch straight out of the joint along its own axis. Which COORD?", o: ["JOINT", "WORLD", "TOOL", "USER"], a: 2, why: "In TOOL, −Z moves along the torch axis away from the work, whatever the torch angle." },
+      { q: "On a FANUC robot in JOINT, you jog J2 forward. What does the forearm do?", o: ["It tilts down with the upper arm", "It keeps its angle to the floor; only J3 changes that", "It rolls", "Nothing moves"], a: 1, why: "FANUC's J3 is measured from the horizontal (the J2/J3 interaction), so J2 alone carries the forearm without changing its angle." }] },
   { id: "jogging", part: "2 · Moving the robot", title: "Jogging step by step", anim: null, cell: "pendant",
     lead: "The exact sequence to move a robot by hand. Do it in this order every time.",
     body: `<ol><li>Controller mode switch to <b>T1</b>.</li><li>Pendant switch to <b>ON</b>.</li><li>Hold the <b>enabling switch</b> in the middle.</li><li>Press <b>RESET</b> to clear SRVO-003 and other alarms. The FAULT light goes off.</li><li>Choose <b>COORD</b> (JOINT to start) and a low override with <b>−%</b> (start at 10%).</li><li>Hold <b>SHIFT</b> and press a jog key, e.g. <b>+X (J1)</b>. Release SHIFT to stop.</li><li>Near the part, change override to <b>FINE</b>: each press moves 1 mm (or 0.1°).</li></ol>

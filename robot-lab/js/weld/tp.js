@@ -341,9 +341,11 @@ class TPController {
     try {
       if (this.group === 2) { if (axis !== 0) { this.say("The positioner has one axis: use the J1 keys."); return; } w.setJoints(w.q, "J", 0, w.e1 + sign * (step != null ? step : 60 * ovr * dt)); return; }
       if (this.coord === "JOINT") {
-        const q = w.q.slice(); q[axis] += sign * (step != null ? step / 10 : 60 * ovr * dt);
-        const [lo, hi] = ARM.limits[axis];
-        if (q[axis] < lo || q[axis] > hi) { this.say(`J${axis + 1} is at its stroke limit.`); this.jog = null; return; }
+        // jog in FANUC joint values: J3 is measured from the horizontal, so jogging J2 keeps the forearm's angle
+        const f = FANUC_AXIS.fromInternal(w.q); f[axis] += sign * (step != null ? step / 10 : 60 * ovr * dt);
+        const q = FANUC_AXIS.toInternal(f);
+        const bad = q.findIndex((v, i) => v < ARM.limits[i][0] || v > ARM.limits[i][1]);
+        if (bad >= 0) { this.say(bad === axis || bad === 2 && axis === 1 ? `J${axis + 1} is at its stroke limit.` : `J${axis + 1}: J${bad + 1} would pass its stroke limit.`); this.jog = null; return; }
         w.setJoints(q, "J", 0); return;
       }
       const T = w.tcpTaught();
@@ -522,7 +524,7 @@ class TPController {
     const w = this.w;
     const rep = this.screen === "posn" ? this.posRep : "USER";
     if (rep === "JNT") {
-      return `<div class="pt">${w.q.map((v, i) => `<span>J${i + 1} ${v.toFixed(3).padStart(9)}</span>`).join("")}<span>E1 ${w.e1.toFixed(3).padStart(9)}</span></div>`;
+      return `<div class="pt">${FANUC_AXIS.fromInternal(w.q).map((v, i) => `<span>J${i + 1} ${v.toFixed(3).padStart(9)}</span>`).join("")}<span>E1 ${w.e1.toFixed(3).padStart(9)}</span></div>`;
     }
     const P = rep === "WORLD" ? w.tcpTaught() : w.currentPose();
     const e = Rot.toFixedXYZ(P.R);
