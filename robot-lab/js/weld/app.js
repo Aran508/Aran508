@@ -314,6 +314,7 @@
   $("fsBtn").innerHTML = FS_IN; if ($("proFs")) $("proFs").innerHTML = FS_IN;
   function setFs(on) {
     document.body.classList.toggle("fs", on);
+    if (!on) document.body.classList.remove("cellfs", "showops"); // leaving full screen also leaves the cell-only view
     const b = $("fsBtn"); b.innerHTML = on ? FS_OUT : FS_IN; if ($("proFs")) $("proFs").innerHTML = b.innerHTML; b.title = on ? "Exit full screen (Esc)" : "Full screen (Esc to exit)"; b.setAttribute("aria-label", b.title);
     requestAnimationFrame(() => window.dispatchEvent(new Event("resize")));
   }
@@ -329,6 +330,21 @@
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
     setFs(false);
   });
+  // cell-only full screen (Pro robot screen once a pendant links): just the 3D cell, operator panel on demand.
+  // Browsers allow real full screen only after a user gesture, so the first click or key upgrades the window-filling view.
+  let fsArm = null;
+  function enterCellFs() {
+    document.body.classList.add("cellfs");
+    setFs(true);
+    if (!fsApi || document.fullscreenElement) return;
+    document.documentElement.requestFullscreen().catch(() => {
+      if (fsArm) return;
+      fsArm = () => { fsArm = null; window.removeEventListener("pointerdown", fsArm2, true); window.removeEventListener("keydown", fsArm2, true); if (document.body.classList.contains("cellfs") && !document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {}); };
+      const fsArm2 = (e) => { if (e.key === "Escape") { fsArm = null; window.removeEventListener("pointerdown", fsArm2, true); window.removeEventListener("keydown", fsArm2, true); return; } fsArm && fsArm(); };
+      window.addEventListener("pointerdown", fsArm2, true); window.addEventListener("keydown", fsArm2, true);
+    });
+  }
+  $("opsBtn").addEventListener("click", () => { const on = document.body.classList.toggle("showops"); $("opsBtn").setAttribute("aria-pressed", String(on)); });
   $("stopBtn").addEventListener("click", stopAll);
   window.addEventListener("keydown", (e) => {
     if ((e.key === "p" || e.key === "P") && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) { e.preventDefault(); togglePause(); }
@@ -751,5 +767,5 @@
   app.log("Welcome. Learn the cell, practise on the pendant, then troubleshoot real faults.", "msg");
   syncProgSelect(); openSharedProgram();
   requestAnimationFrame(frame);
-  window.__weld = { world, ctl, tp, app, scene, view, toggleFs, setTab, setMode, setChapter, startScenario, demoWeld, setPaused, stopAll, get paused() { return paused; } };
+  window.__weld = { world, ctl, tp, app, scene, view, toggleFs, enterCellFs, exitFs: () => { if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); setFs(false); }, setTab, setMode, setChapter, startScenario, demoWeld, setPaused, stopAll, get paused() { return paused; } };
 })();

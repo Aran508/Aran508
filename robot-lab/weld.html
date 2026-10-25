@@ -271,6 +271,18 @@ td.bad { color: var(--danger); font-weight: 700; } td.warnc { color: var(--warn)
 .tp-led2 i.on[data-led="fault"] { background: #e0261c; box-shadow: 0 0 5px #e0261c; }
 .tpbar label { display: flex; gap: 5px; align-items: center; }
 
+#opsBtn { display: none; }
+/* cell-only full screen: the 3D cell covers the screen; the controller/operator panel floats on demand */
+body.cellfs .top, body.cellfs #side, body.cellfs #tpPane, body.cellfs #learn, body.cellfs #proPane { display: none !important; }
+body.cellfs .app { height: 100vh; grid-template-rows: minmax(0, 1fr); }
+body.cellfs .main { grid-template-columns: minmax(0, 1fr) !important; grid-template-rows: minmax(0, 1fr) !important; grid-template-areas: "stage" !important; padding: 0 !important; gap: 0 !important; }
+body.cellfs #stage { position: relative; border: 0; border-radius: 0; }
+body.cellfs #view3d { position: relative !important; height: 100vh !important; border-radius: 0; flex: 1 1 auto; }
+body.cellfs .ops { display: none; position: absolute; left: 10px; right: 10px; bottom: 58px; z-index: 25; background: var(--hud); border: 1px solid var(--line); border-radius: 8px; backdrop-filter: blur(6px); }
+body.cellfs.showops .ops { display: flex; }
+body.cellfs #log { display: none; }
+body.cellfs #opsBtn { display: inline-block; }
+body.cellfs { padding-top: 0 !important; }
 .fsbtn { top: 10px; right: 10px; width: 32px; height: 32px; padding: 0; font-size: 18px; line-height: 1; color: var(--ink); cursor: pointer; display: grid; place-items: center; }
 .fsbtn:hover { border-color: var(--accent); color: var(--accent); }
 /* full screen: the header and the side tabs step aside so the 3D view gets the room */
@@ -435,7 +447,7 @@ body.linked[data-mode="pro"][data-role="pendant"] .app { height: 100vh; grid-tem
         <div class="hud" id="comp" hidden></div>
         <div class="hud play" id="playBar"><button id="pauseBtn" class="pp" aria-label="Pause everything that is running">❚❚ Pause</button><button id="stopBtn" aria-label="Stop the demo or program">■ Stop</button><span id="playInfo"></span></div>
         <div class="hud" id="pausedTag" hidden>PAUSED — press Resume (or P) to continue</div>
-        <div class="hud vtools"><button id="vIso">Cell view</button><button id="vWeld">Weld view</button><button id="vJoint">Joint</button><button id="vFrames" aria-pressed="true">Frames</button></div>
+        <div class="hud vtools"><button id="vIso">Cell view</button><button id="vWeld">Weld view</button><button id="vJoint">Joint</button><button id="vFrames" aria-pressed="true">Frames</button><button id="opsBtn" aria-pressed="false" title="Show the controller and operator panel">Panel</button></div>
       </div>
       <div class="ops">
         <div class="opgrp"><span>Controller</span>

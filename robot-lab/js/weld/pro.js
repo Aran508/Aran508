@@ -81,6 +81,7 @@
   // ---------------------------------------------------------------- roles and layout
   function setRole(r) {
     if (r !== role) closeAll();
+    if (document.body.classList.contains("cellfs")) W.exitFs();
     document.body.classList.remove("linked");
     role = r;
     document.body.dataset.role = r;
@@ -99,7 +100,7 @@
 
   // called by the app whenever the mode changes
   function onMode(m) {
-    if (m !== "pro") { closeAll(); role = "pick"; delete document.body.dataset.role; document.body.classList.remove("linked"); return; }
+    if (m !== "pro") { if (document.body.classList.contains("cellfs")) W.exitFs(); closeAll(); role = "pick"; delete document.body.dataset.role; document.body.classList.remove("linked"); return; }
     // a link like weld.html#pendant=123456 joins straight away
     const h = location.hash.match(/pendant=(\d{6})/);
     if (h) { setRole("pendant"); $("proCode").value = h[1]; join(); return; }
@@ -155,6 +156,7 @@
     robotStatus(`Pendant connected ✓ (${L.kind === "direct" ? "direct link" : "relay"})`);
     $("proCodeBox").classList.add("ok");
     W.app.log(`Pro: teach pendant connected from another device (${L.kind === "direct" ? "direct link" : "relay"}).`, "msg");
+    if (!document.body.classList.contains("cellfs")) W.enterCellFs(); // the robot screen becomes the full-screen cell
     pushView(true);
   }
   function onRobotData(m) {
@@ -176,7 +178,7 @@
   }
   setInterval(() => {
     if (role !== "robot" || !conn) return;
-    if (Date.now() - lastSeen > (conn.kind === "relay" ? 3000 : 2000)) linkLost("timeout");
+    if (Date.now() - lastSeen > (conn.kind === "relay" ? 4000 : 3000)) linkLost("timeout");
     else send({ t: "hb" });
   }, 250);
 
