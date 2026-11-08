@@ -88,24 +88,37 @@ export async function parsePartMaster(wb: XlsxLite): Promise<{ parts: ParsedPart
 export async function parseOeeData(wb: XlsxLite, sheetName = 'OEE data 1') {
   const ws: Grid | null = await wb.sheet(sheetName);
   if (!ws) throw new Error(`Sheet '${sheetName}' was not found in the workbook`);
-  const C = Object.fromEntries(['E', 'F', 'G', 'H', 'I', 'J', 'L', 'M', 'N', 'O', 'P', 'Q', 'AN', 'AP', 'AS', 'BB'].map((k) => [k, colToNum(k)]));
+  const C = Object.fromEntries(['E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'AN', 'AP', 'AS', 'BB'].map((k) => [k, colToNum(k)]));
   const month = isoDate(ws.get(2, 2)?.v)?.slice(0, 7) ?? null;
   const last = ws.rowCount;
   const starts: number[] = [];
   for (let r = 4; r <= last; r++) if (ws.get(r, C.AN)) starts.push(r);
   const blocks: ParsedBlock[] = [];
   const skipped: { row: number; reason: string }[] = [];
+  const notes: { row: number; note: string }[] = [];
+  // Planned minutes → shift, from the 'Shift Timings' sheet (445 / 460 / 370)
+  const st = await wb.sheet('Shift Timings');
+  const shiftByPlanned = new Map<number, number>();
+  if (st) for (let r = 2; r <= 4; r++) { const sid = numOrNull(st.get(r, 1)?.v); const pm = numOrNull(st.get(r, 7)?.v); if (sid && pm) shiftByPlanned.set(pm, sid); }
+  if (!shiftByPlanned.size) [[445, 1], [460, 2], [370, 3]].forEach(([a, b]) => shiftByPlanned.set(a, b));
   for (let si = 0; si < starts.length; si++) {
     const r = starts[si];
     const end = (starts[si + 1] ?? last + 1) - 1;
     // Columns E/F/G/H already carry date, shift, machine and code down in the workbook.
     // A block whose machine (G) is #N/A is ignored by every SUMIFS report, so it is skipped too.
     const carryDate = isoDate(ws.get(r, C.E)?.v) ?? '';
-    const carryShift = numOr0(ws.get(r, C.F)?.v);
+    let carryShift = numOr0(ws.get(r, C.F)?.v);
     const carryName = str(ws.get(r, C.G)?.v);
     const carryCode = str(ws.get(r, C.H)?.v);
     const ap = ws.get(r, C.AP);
     const as = ws.get(r, C.AS);
+    // When the Shift cell (K) of a block was left blank, Excel carries the previous shift down,
+    // but the typed planned time (445 / 460 / 370) shows which shift the note really was.
+    const typedShift = numOrNull(ws.get(r, C.K)?.v);
+    if (!typedShift && ap && !ap.f && typeof ap.v === 'number' && shiftByPlanned.has(ap.v) && shiftByPlanned.get(ap.v) !== carryShift) {
+      notes.push({ row: r, note: `Shift cell blank; carried shift ${carryShift} replaced by shift ${shiftByPlanned.get(ap.v)} from typed planned time ${ap.v}` });
+      carryShift = shiftByPlanned.get(ap.v)!;
+    }
     const block: ParsedBlock = {
       row: r,
       date: carryDate,
@@ -148,7 +161,8 @@ export async function parseOeeData(wb: XlsxLite, sheetName = 'OEE data 1') {
     }
     blocks.push(block);
   }
-  return { month, blocks, skipped };
+  const kept = new Set(blocks.map((b) => b.row));
+  return { month, blocks, skipped, notes: notes.filter((n) => kept.has(n.row)) };
 }
 
 export interface ImportResult {

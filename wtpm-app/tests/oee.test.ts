@@ -114,3 +114,34 @@ describe('multiple records for one machine & shift', () => {
     expect(b.totalLosses).toBe(460);
   });
 });
+
+import { EntrySchema } from '@/lib/entries';
+describe('entry payload validation', () => {
+  it('keeps "no override" as null (null must not be coerced to 0 minutes)', () => {
+    const p = EntrySchema.parse({ prodDate: '2026-11-02', shiftId: 1, machineId: 1, plannedTimeOverride: null, operatingTimeOverride: null });
+    expect(p.plannedTimeOverride).toBeNull();
+    expect(p.operatingTimeOverride).toBeNull();
+    expect(EntrySchema.parse({ prodDate: '2026-11-02', shiftId: 1, machineId: 1, plannedTimeOverride: '240' }).plannedTimeOverride).toBe(240);
+  });
+  it('rejects negative quantities and losses', () => {
+    expect(() => EntrySchema.parse({ prodDate: '2026-11-02', shiftId: 1, machineId: 1, lines: [{ partNumber: 'P1', qty: -5 }] })).toThrow();
+    expect(() => EntrySchema.parse({ prodDate: '2026-11-02', shiftId: 1, machineId: 1, losses: { breakdown: -10 } })).toThrow();
+  });
+});
+
+describe('planned time when a shift has several records', () => {
+  const base = { prodDate: '2026-10-12', shiftId: 2, machineId: 10 };
+  const L = (qty: number) => [{ qty, defect: 0, cycleTimeMin: 1 }];
+  it('Excel continuation block (typed planned time 0) does not wipe the shift planned time', () => {
+    const [b] = buildBlocks([{ ...base, lines: L(10), losses: {} }, { ...base, plannedTimeOverride: 0, lines: L(5), losses: {} }], DEFAULT_CATEGORY_FLAGS, SHIFT);
+    expect(b.plannedTime).toBe(460);
+  });
+  it('typed half shift wins over the standard shift time', () => {
+    const [b] = buildBlocks([{ ...base, plannedTimeOverride: 240, lines: L(10), losses: {} }, { ...base, lines: L(5), losses: {} }], DEFAULT_CATEGORY_FLAGS, SHIFT);
+    expect(b.plannedTime).toBe(240);
+  });
+  it('a single record typed as 0 planned time stays 0 (as Excel AP = 0)', () => {
+    const [b] = buildBlocks([{ ...base, plannedTimeOverride: 0, lines: L(5), losses: {} }], DEFAULT_CATEGORY_FLAGS, SHIFT);
+    expect(b.plannedTime).toBe(0);
+  });
+});

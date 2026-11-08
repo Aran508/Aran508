@@ -26,7 +26,7 @@ const P = z.object({
   machine_id: z.coerce.number().int().min(1, 'Select a machine'),
   part_number: z.string().trim().min(1, 'Part number required').max(60),
   cycle_time_min: z.coerce.number().positive('Cycle time must be greater than 0').max(1440),
-  bore: z.union([z.coerce.number().min(0), z.null()]).optional(),
+  bore: z.union([z.null(), z.coerce.number().min(0)]).optional(),
   notes: z.string().max(500).optional().nullable(),
   active: z.boolean().default(true),
   reason: z.string().trim().max(500).optional().nullable(),

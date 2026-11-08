@@ -1,12 +1,13 @@
 # Engineering playground
 
-Two browser simulators, each a static page with no build step.
+Two browser simulators (static pages, no build step) and a full-stack production app.
 
 | Project | What it is |
 |---------|------------|
 | [`robot-lab/weld.html`](robot-lab/weld.html) | **Weld Cell Trainer**: FANUC-style arc welding cell with a working teach pendant, PLC, and fault scenarios |
 | [`robot-lab/`](robot-lab/) | **Robot Academy**: learn industrial robot programming in ABB RAPID, FANUC TP, KUKA KRL, Yaskawa INFORM or URScript, and run your code on a simulated 6-axis arm |
 | [`bridge-lab/`](bridge-lab/) | **Bridge Lab**: design a truss bridge and load-test it with an XPBD solver |
+| [`wtpm-app/`](wtpm-app/) | **WTPM OEE System**: tablet data entry for WTPM production notes, live OEE dashboard and monthly Excel/PDF reports (Next.js + PostgreSQL) — see [`wtpm-app/README.md`](wtpm-app/README.md) |
 
 ---
 

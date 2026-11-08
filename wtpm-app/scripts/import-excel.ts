@@ -19,7 +19,8 @@ async function main() {
     const pm = await upsertPartMaster(c, parts, admin);
     console.log(`Cycletime and Bore: ${parts.length} parts (${duplicates} duplicate keys ignored, first match kept like VLOOKUP) → ${pm.inserted} new, ${pm.updated} updated; unknown machine codes: ${pm.unknownMachines.join(', ') || 'none'}`);
     if (process.argv.includes('--master-only')) return;
-    const { month, blocks } = await parseOeeData(wb);
+    const { month, blocks, notes } = await parseOeeData(wb);
+    for (const n of notes) console.log(`  note row ${n.row}: ${n.note}`);
     const r = await importBlocks(c, blocks, { userId: admin, replaceExistingImport: process.argv.includes('--replace') });
     console.log(`OEE data 1 (${month}): ${r.imported} records imported, ${r.replaced} previous imported records replaced`);
     for (const s of r.skipped.slice(0, 20)) console.log(`  skipped row ${s.row}: ${s.reason}`);

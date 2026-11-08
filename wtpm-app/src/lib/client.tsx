@@ -1,5 +1,5 @@
 'use client';
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
 export class ApiError extends Error {
   constructor(public status: number, message: string, public details?: Record<string, unknown>) {
@@ -72,7 +72,8 @@ export function LiveProvider({ children }: { children: React.ReactNode }) {
     listeners.current.add(l);
     return () => listeners.current.delete(l);
   }, []);
-  return <Live.Provider value={{ status, subscribe, lastEvent }}>{children}</Live.Provider>;
+  const value = useMemo(() => ({ status, subscribe, lastEvent }), [status, subscribe, lastEvent]);
+  return <Live.Provider value={value}>{children}</Live.Provider>;
 }
 export const useLive = () => useContext(Live);
 
@@ -82,7 +83,7 @@ export function useApi<T>(url: string | null, opts: { live?: boolean } = { live:
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(!!url);
   const [refreshing, setRefreshing] = useState(false);
-  const live = useLive();
+  const { subscribe } = useLive();
   const urlRef = useRef(url);
   urlRef.current = url;
   const seq = useRef(0);
@@ -113,7 +114,7 @@ export function useApi<T>(url: string | null, opts: { live?: boolean } = { live:
   useEffect(() => {
     if (opts.live === false) return;
     let t: ReturnType<typeof setTimeout> | null = null;
-    const unsub = live.subscribe(() => {
+    const unsub = subscribe(() => {
       if (t) clearTimeout(t);
       t = setTimeout(() => load(true), 500);
     });
@@ -121,7 +122,7 @@ export function useApi<T>(url: string | null, opts: { live?: boolean } = { live:
       unsub();
       if (t) clearTimeout(t);
     };
-  }, [live, load, opts.live]);
+  }, [subscribe, load, opts.live]);
   return { data, error, loading, refreshing, reload: () => load(true), setData };
 }
 
@@ -138,7 +139,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastCtx.Provider value={push}>
       {children}
-      <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2 w-[min(92vw,460px)] no-print" role="status" aria-live="polite">
+      <div className="fixed top-3 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2 w-[min(92vw,460px)] no-print" role="status" aria-live="polite">
         {toasts.map((t) => (
           <div key={t.id} className={`rounded-2xl px-4 py-3 text-sm font-semibold shadow-lg text-white ${t.tone === 'good' ? 'bg-good' : t.tone === 'bad' ? 'bg-bad' : 'bg-navy-800'}`}>
             {t.text}

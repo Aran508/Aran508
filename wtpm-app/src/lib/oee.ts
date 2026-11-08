@@ -172,7 +172,7 @@ export function buildBlocks(
 ): BlockResult[] {
   const mg = new Set(categories.filter((c) => c.is_management).map((c) => c.code));
   const rv = new Set(categories.filter((c) => c.is_revised_excl).map((c) => c.code));
-  const map = new Map<string, BlockResult & { _override: number | null }>();
+  const map = new Map<string, BlockResult & { _override: number | null; _producing: boolean }>();
   for (const e of entries) {
     const key = blockKey(e);
     let b = map.get(key);
@@ -186,13 +186,16 @@ export function buildBlocks(
         week: weekOfMonth(e.prodDate),
         blocks: 1,
         _override: null,
+        _producing: false,
       };
       map.set(key, b);
     }
     b.entries += 1;
+    let entryQty = 0;
     for (const l of e.lines) {
       b.qty += num(l.qty);
       b.defect += num(l.defect);
+      entryQty += num(l.qty);
     }
     b.operatingTime += entryOperatingTime(e);
     for (const [code, raw] of Object.entries(e.losses || {})) {
@@ -203,16 +206,21 @@ export function buildBlocks(
       if (mg.has(code)) b.managementLosses += m;
       if (rv.has(code)) b.revisedExcl += m;
     }
-    if (e.plannedTimeOverride != null && Number.isFinite(Number(e.plannedTimeOverride))) {
-      b._override = Math.max(b._override ?? 0, num(e.plannedTimeOverride));
-    }
+    const hasOverride = e.plannedTimeOverride != null && Number.isFinite(Number(e.plannedTimeOverride));
+    if (hasOverride && num(e.plannedTimeOverride) > 0) b._override = Math.max(b._override ?? 0, num(e.plannedTimeOverride));
+    // A record with a typed planned time of 0 is a continuation of the shift (Excel practice for a
+    // second block of the same machine & shift) and does not make the shift count again.
+    if (!hasOverride && entryQty > 0) b._producing = true;
   }
   const out: BlockResult[] = [];
   for (const b of map.values()) {
-    // AP = IF(AN>0, VLOOKUP(shift,'Shift Timings'!A:G,7), 0) — or the typed value
-    b.plannedTime = b._override != null ? b._override : b.qty > 0 ? num(shiftPlanned[b.shiftId]) : 0;
-    const { _override, ...rest } = b;
+    // AP = IF(AN>0, VLOOKUP(shift,'Shift Timings'!A:G,7), 0) — or the typed value.
+    // Planned time is counted once per machine & shift: a typed non-zero value (half shift, etc.)
+    // wins; otherwise the shift's planned time if any record without a typed value produced parts.
+    b.plannedTime = b._override != null ? b._override : b._producing ? num(shiftPlanned[b.shiftId]) : 0;
+    const { _override, _producing, ...rest } = b;
     void _override;
+    void _producing;
     out.push(rest);
   }
   out.sort((a, b) => a.prodDate.localeCompare(b.prodDate) || a.shiftId - b.shiftId || a.machineId - b.machineId);

@@ -19,7 +19,7 @@ export const POST = api(async (req: Request) => {
   if (preview) {
     return {
       sheets: wb.sheetNames(), parts: parts.length, duplicates,
-      month: parsed?.month ?? null, blocks: parsed?.blocks.length ?? 0, skipped: parsed?.skipped.slice(0, 50) ?? [],
+      month: parsed?.month ?? null, blocks: parsed?.blocks.length ?? 0, skipped: parsed?.skipped.slice(0, 50) ?? [], notes: parsed?.notes ?? [],
       qty: parsed?.blocks.reduce((s, b) => s + b.lines.reduce((x, l) => x + l.qty, 0), 0) ?? 0,
     };
   }
@@ -28,7 +28,7 @@ export const POST = api(async (req: Request) => {
     let data = null;
     if (parsed) data = await importBlocks(c, parsed.blocks, { userId: user.uid, replaceExistingImport: form.get('replace') === '1', label: `${file.name} / OEE data 1` });
     await audit(c, { entity: 'import', entityId: file.name, action: mode === 'data' ? 'import_workbook' : 'import_master', userId: user.uid, newValue: { parts: pm, data: data && { imported: data.imported, replaced: data.replaced, skipped: data.skipped.length }, month: parsed?.month }, ip: await clientIp() });
-    return { parts: pm, data };
+    return { parts: pm, data, notes: parsed?.notes ?? [] };
   });
   await notifyChange(null, { type: 'entry', action: 'import' });
   return result;
