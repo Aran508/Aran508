@@ -1,0 +1,44 @@
+{
+  "name": "wtpm-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "WTPM Digital Data Collection & OEE Management System",
+  "scripts": {
+    "dev": "next dev -H 0.0.0.0 -p 3000",
+    "build": "next build",
+    "start": "next start -H 0.0.0.0 -p 3000",
+    "lint": "tsc --noEmit",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "db:seed": "tsx scripts/seed.ts",
+    "db:import": "tsx scripts/import-excel.ts",
+    "db:backup": "tsx scripts/backup.ts",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "exceljs": "^4.4.0",
+    "jose": "^5.9.6",
+    "jspdf": "^2.5.2",
+    "jspdf-autotable": "^3.8.4",
+    "jszip": "^3.10.1",
+    "lucide-react": "^0.468.0",
+    "next": "15.5.4",
+    "pg": "^8.13.1",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "recharts": "^2.15.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.0.0",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^22.10.2",
+    "@types/pg": "^8.11.10",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "tailwindcss": "^4.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
