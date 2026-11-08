@@ -21,7 +21,17 @@ function candidates(): string[] {
   return raw.split(/[\s,]+/).filter(Boolean);
 }
 
-const sslFor = (url: string) => (/sslmode=require|supabase\.com|neon\.tech|render\.com/.test(url) ? { rejectUnauthorized: false } : undefined);
+const sslFor = (url: string) => (/sslmode=|supabase\.com|neon\.tech|render\.com/.test(url) ? { rejectUnauthorized: false } : undefined);
+
+/**
+ * pg reads `sslmode` from the URL and it overrides the `ssl` option (sslmode=require is treated
+ * as verify-full). Cloud poolers such as Supabase present a certificate that is not in Node's
+ * default CA list, so the parameter is removed and TLS is configured through `sslFor` instead:
+ * the connection stays encrypted.
+ */
+function cleanUrl(url: string) {
+  return url.replace(/([?&])(sslmode|sslrootcert|uselibpqcompat)=[^&]*&?/g, '$1').replace(/[?&]$/, '');
+}
 
 export async function resolveDatabaseUrl(): Promise<string> {
   if (global.__wtpmUrl) return global.__wtpmUrl;
@@ -29,7 +39,7 @@ export async function resolveDatabaseUrl(): Promise<string> {
   if (list.length === 1) return (global.__wtpmUrl = list[0]);
   let last: unknown;
   for (const url of list) {
-    const c = new Client({ connectionString: url, ssl: sslFor(url), connectionTimeoutMillis: 8000 });
+    const c = new Client({ connectionString: cleanUrl(url), ssl: sslFor(url), connectionTimeoutMillis: 8000 });
     try {
       await c.connect();
       await c.query('SELECT 1');
@@ -46,7 +56,7 @@ export async function resolveDatabaseUrl(): Promise<string> {
 export function getPool(): Promise<Pool> {
   if (!global.__wtpmPool) {
     global.__wtpmPool = resolveDatabaseUrl()
-      .then((url) => new Pool({ connectionString: url, ssl: sslFor(url), max: Number(process.env.DB_POOL_MAX || 20) }))
+      .then((url) => new Pool({ connectionString: cleanUrl(url), ssl: sslFor(url), max: Number(process.env.DB_POOL_MAX || 20) }))
       .catch((e) => {
         global.__wtpmPool = undefined;
         throw e;
@@ -58,7 +68,7 @@ export function getPool(): Promise<Pool> {
 /** A dedicated client (used for LISTEN by the live-update stream). */
 export async function newClient() {
   const url = await resolveDatabaseUrl();
-  return new Client({ connectionString: url, ssl: sslFor(url) });
+  return new Client({ connectionString: cleanUrl(url), ssl: sslFor(url) });
 }
 
 export async function query<T extends QueryResultRow = QueryResultRow>(text: string, params: unknown[] = []): Promise<T[]> {
