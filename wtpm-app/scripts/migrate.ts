@@ -5,7 +5,10 @@ import { getPool } from '../src/lib/db';
 
 export async function migrate(log = console.log) {
   const pool = await getPool();
-  await pool.query(`CREATE TABLE IF NOT EXISTS schema_migrations (name TEXT PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
+  // Only create the bookkeeping table when it is missing: a restricted app login (e.g. on a hosted
+  // database where the schema was created by the owner) may not have CREATE rights on the schema.
+  const exists = (await pool.query(`SELECT to_regclass('schema_migrations') IS NOT NULL AS ok`)).rows[0].ok;
+  if (!exists) await pool.query(`CREATE TABLE schema_migrations (name TEXT PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
   const dir = path.resolve(__dirname, '../db/migrations');
   const files = fs.readdirSync(dir).filter((f) => f.endsWith('.sql')).sort();
   const done = new Set((await pool.query('SELECT name FROM schema_migrations')).rows.map((r) => r.name));
