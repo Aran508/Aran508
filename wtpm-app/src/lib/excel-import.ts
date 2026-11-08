@@ -192,6 +192,9 @@ export async function importBlocks(
     );
     res.replaced = r.rowCount ?? 0;
   }
+  // Bulk insert (few round-trips) — important when the database is far from the app server.
+  type E = { ref: string; date: string; shift: number; machineId: number; pto: number | null; ptoR: string | null; oto: number | null; otoR: string | null; other: string | null; remarks: string | null; block: ParsedBlock };
+  const rows: E[] = [];
   for (const b of blocks) {
     const machineId = byCode.get(b.code.toLowerCase()) ?? byName.get(b.machine.toLowerCase().replace(/\s+/g, ' '));
     if (!machineId) {
@@ -203,33 +206,53 @@ export async function importBlocks(
       continue;
     }
     const pto = b.ap_formula != null && Number.isFinite(Number(b.ap_formula)) ? Number(b.ap_formula) : null;
-    const oto = b.as_formula != null && Number.isFinite(Number(b.as_formula)) ? Number(b.as_formula) : null;
-    const other = b.losses.AM ? b.remarks.join('\n') || 'Imported from Excel' : null;
-    const { rows } = await c.query(
+    const otoRaw = b.as_formula != null && Number.isFinite(Number(b.as_formula)) ? Number(b.as_formula) : null;
+    const oto = otoRaw != null && otoRaw >= 0 ? otoRaw : null;
+    rows.push({
+      ref: `${label}!row ${b.row}`, date: b.date, shift: b.shift, machineId,
+      pto, ptoR: pto != null ? 'Typed value in Excel' : null, oto, otoR: oto != null ? 'Typed value in Excel' : null,
+      other: b.losses.AM ? b.remarks.join('\n') || 'Imported from Excel' : null, remarks: b.remarks.join('\n') || null, block: b,
+    });
+  }
+  const CHUNK = 500;
+  for (let i = 0; i < rows.length; i += CHUNK) {
+    const part = rows.slice(i, i + CHUNK);
+    const ins = await c.query(
       `INSERT INTO production_entries (prod_date, shift_id, machine_id, planned_time_override, planned_override_reason,
          operating_time_override, operating_override_reason, other_loss_reason, remarks, status, source, created_by, updated_by, import_ref)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'verified','import',$10,$10,$11) RETURNING id`,
-      [
-        b.date, b.shift, machineId,
-        pto, pto != null ? 'Typed value in Excel' : null,
-        oto != null && oto >= 0 ? oto : null, oto != null ? 'Typed value in Excel' : null,
-        other, b.remarks.join('\n') || null, opts.userId, `${label}!row ${b.row}`,
-      ],
+       SELECT d, s, m, pto, ptor, oto, otor, oth, rem, 'verified', 'import', $10, $10, ref
+       FROM unnest($1::date[], $2::int[], $3::int[], $4::numeric[], $5::text[], $6::numeric[], $7::text[], $8::text[], $9::text[], $11::text[])
+         AS t(d, s, m, pto, ptor, oto, otor, oth, rem, ref)
+       RETURNING id, import_ref`,
+      [part.map((r) => r.date), part.map((r) => r.shift), part.map((r) => r.machineId), part.map((r) => r.pto), part.map((r) => r.ptoR), part.map((r) => r.oto), part.map((r) => r.otoR), part.map((r) => r.other), part.map((r) => r.remarks), opts.userId, part.map((r) => r.ref)],
     );
-    const id = rows[0].id;
-    let n = 1;
-    for (const l of b.lines) {
+    const idOf = new Map((ins.rows as { id: string; import_ref: string }[]).map((r) => [r.import_ref, r.id]));
+    const L = { e: [] as string[], n: [] as number[], p: [] as string[], pm: [] as (number | null)[], bore: [] as (number | null)[], ct: [] as (number | null)[], q: [] as number[], d: [] as number[], rw: [] as number[], h: [] as number[], st: [] as number[] };
+    const X = { e: [] as string[], c: [] as string[], m: [] as number[] };
+    for (const r of part) {
+      const id = idOf.get(r.ref)!;
+      r.block.lines.forEach((l, k) => {
+        const pn = String(l.part ?? '').trim();
+        L.e.push(id); L.n.push(k + 1); L.p.push(pn || '(blank)');
+        L.pm.push(partId.get(`${r.machineId}|${pn.toUpperCase()}`) ?? null);
+        L.bore.push(numOrNull(l.bore) || null); L.ct.push(numOrNull(l.ct));
+        L.q.push(Math.max(0, numOr0(l.qty))); L.d.push(Math.max(0, numOr0(l.defect))); L.rw.push(Math.max(0, numOr0(l.rw)));
+        L.h.push(Math.max(0, numOr0(l.hold))); L.st.push(Math.max(0, numOr0(l.setting)));
+      });
+      for (const [colL, minutes] of Object.entries(r.block.losses)) {
+        const code = EXCEL_LOSS_COLUMNS[colL];
+        if (code && minutes > 0) { X.e.push(id); X.c.push(code); X.m.push(minutes); }
+      }
+    }
+    if (L.e.length)
       await c.query(
         `INSERT INTO entry_lines (entry_id, line_no, part_number, part_master_id, bore, cycle_time_min, qty, defect, rework, hold, setting_changeover_count)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
-        [id, n++, String(l.part ?? '').trim() || '(blank)', partId.get(`${machineId}|${String(l.part ?? '').toUpperCase()}`) ?? null, numOrNull(l.bore) || null, numOrNull(l.ct), Math.max(0, numOr0(l.qty)), Math.max(0, numOr0(l.defect)), Math.max(0, numOr0(l.rw)), Math.max(0, numOr0(l.hold)), Math.max(0, numOr0(l.setting))],
+         SELECT * FROM unnest($1::uuid[], $2::int[], $3::text[], $4::int[], $5::numeric[], $6::numeric[], $7::numeric[], $8::numeric[], $9::numeric[], $10::numeric[], $11::numeric[])`,
+        [L.e, L.n, L.p, L.pm, L.bore, L.ct, L.q, L.d, L.rw, L.h, L.st],
       );
-    }
-    for (const [colL, minutes] of Object.entries(b.losses)) {
-      const code = EXCEL_LOSS_COLUMNS[colL];
-      if (code && minutes > 0) await c.query('INSERT INTO entry_losses (entry_id, category_code, minutes) VALUES ($1,$2,$3)', [id, code, minutes]);
-    }
-    res.imported++;
+    if (X.e.length)
+      await c.query(`INSERT INTO entry_losses (entry_id, category_code, minutes) SELECT * FROM unnest($1::uuid[], $2::text[], $3::numeric[])`, [X.e, X.c, X.m]);
+    res.imported += part.length;
   }
   return res;
 }
@@ -237,24 +260,32 @@ export async function importBlocks(
 export async function upsertPartMaster(c: PoolClient, parts: ParsedPart[], userId: number | null) {
   const machines = (await c.query('SELECT id, code FROM machines')).rows as { id: number; code: string }[];
   const byCode = new Map(machines.map((m) => [m.code.toLowerCase(), m.id]));
-  let inserted = 0,
-    updated = 0;
   const unknown = new Set<string>();
+  const seen = new Set<string>();
+  const A = { m: [] as number[], p: [] as string[], ct: [] as number[], b: [] as (number | null)[] };
   for (const p of parts) {
     const mid = byCode.get(p.machine_code.toLowerCase());
     if (!mid) {
       unknown.add(p.machine_code);
       continue;
     }
+    const key = `${mid}|${p.part_number.toUpperCase()}`;
+    if (seen.has(key)) continue; // first match wins, like VLOOKUP
+    seen.add(key);
+    A.m.push(mid); A.p.push(p.part_number); A.ct.push(p.ct); A.b.push(p.bore);
+  }
+  let inserted = 0,
+    updated = 0;
+  for (let i = 0; i < A.m.length; i += 1000) {
     const r = await c.query(
       `INSERT INTO part_master (machine_id, part_number, cycle_time_min, bore, created_by, updated_by)
-       VALUES ($1,$2,$3,$4,$5,$5)
+       SELECT m, p, ct, b, $5, $5 FROM unnest($1::int[], $2::text[], $3::numeric[], $4::numeric[]) AS t(m, p, ct, b)
        ON CONFLICT (machine_id, upper(part_number)) DO UPDATE SET cycle_time_min = EXCLUDED.cycle_time_min, bore = EXCLUDED.bore, updated_by = EXCLUDED.updated_by, updated_at = now()
+         WHERE part_master.cycle_time_min IS DISTINCT FROM EXCLUDED.cycle_time_min OR part_master.bore IS DISTINCT FROM EXCLUDED.bore
        RETURNING (xmax = 0) AS inserted`,
-      [mid, p.part_number, p.ct, p.bore, userId],
+      [A.m.slice(i, i + 1000), A.p.slice(i, i + 1000), A.ct.slice(i, i + 1000), A.b.slice(i, i + 1000), userId],
     );
-    if (r.rows[0].inserted) inserted++;
-    else updated++;
+    for (const row of r.rows) (row.inserted ? inserted++ : updated++);
   }
   return { inserted, updated, unknownMachines: [...unknown] };
 }
