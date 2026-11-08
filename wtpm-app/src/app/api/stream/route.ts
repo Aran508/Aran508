@@ -1,4 +1,5 @@
-import { Client } from 'pg';
+import type { Client } from 'pg';
+import { newClient } from '@/lib/db';
 import { currentUser } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
@@ -13,7 +14,12 @@ export async function GET(req: Request) {
   const user = await currentUser();
   if (!user) return new Response('Unauthorized', { status: 401 });
   const enc = new TextEncoder();
-  const client = new Client({ connectionString: process.env.DATABASE_URL });
+  let client: Client;
+  try {
+    client = await newClient();
+  } catch {
+    return new Response('Database unavailable', { status: 503 });
+  }
   let closed = false;
   const stream = new ReadableStream({
     async start(controller) {

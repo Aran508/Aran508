@@ -4,7 +4,7 @@ import path from 'node:path';
 import { getPool } from '../src/lib/db';
 
 export async function migrate(log = console.log) {
-  const pool = getPool();
+  const pool = await getPool();
   await pool.query(`CREATE TABLE IF NOT EXISTS schema_migrations (name TEXT PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
   const dir = path.resolve(__dirname, '../db/migrations');
   const files = fs.readdirSync(dir).filter((f) => f.endsWith('.sql')).sort();
@@ -29,5 +29,5 @@ export async function migrate(log = console.log) {
 }
 
 if (require.main === module) {
-  migrate().then(() => { console.log('migrations up to date'); return getPool().end(); }).catch((e) => { console.error(e); process.exit(1); });
+  migrate().then(() => { console.log('migrations up to date'); return getPool().then((p) => p.end()); }).catch((e) => { console.error(e); process.exit(1); });
 }

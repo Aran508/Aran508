@@ -197,3 +197,18 @@ wtpm-app/
   src/app/api/          JSON API (auth, entries, suggest, uploads, stream, reports, exports, master, users, audit)
   tests/                engine + reconciliation tests, fixtures from the workbook, e2e script
 ```
+
+---
+
+## 6. Cloud deployment used for the demo (Vercel + Supabase)
+
+* Database: Supabase project `wtpm-oee` (ap-south-1). Tables live in schema `wtpm` (not exposed
+  through Supabase's public Data API); the app logs in as role `wtpm_app` whose `search_path` is `wtpm`.
+* Host: Vercel project with *Root Directory* `wtpm-app`. The `vercel-build` script runs the
+  migrations and the idempotent seed, then `next build`.
+* Vercel environment variables: `DATABASE_URL` (Supabase session-pooler URL; several candidate
+  URLs separated by a space are allowed, the first that connects is used), `AUTH_SECRET`,
+  `COOKIE_SECURE=true`, `PHOTO_STORAGE=database` (no persistent disk on Vercel), `DB_POOL_MAX=3`,
+  `SEED_ADMIN_PASSWORD`, `SEED_DEMO_PASSWORD`.
+* On Vercel the live-update stream reconnects whenever a serverless function reaches its time
+  limit; screens still refresh within seconds of a save, and the 60-second fallback refresh remains.

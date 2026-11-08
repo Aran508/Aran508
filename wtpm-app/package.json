@@ -13,7 +13,8 @@
     "db:import": "tsx scripts/import-excel.ts",
     "db:backup": "tsx scripts/backup.ts",
     "test": "vitest run",
-    "test:e2e": "node tests/e2e/run-e2e.cjs"
+    "test:e2e": "node tests/e2e/run-e2e.cjs",
+    "vercel-build": "tsx scripts/migrate.ts && tsx scripts/seed.ts && next build"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

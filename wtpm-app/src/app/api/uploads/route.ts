@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { api, requireUser, HttpError, clientIp } from '@/lib/auth';
 import { queryOne, query } from '@/lib/db';
 import { sniffImage, storeFile } from '@/lib/uploads';
@@ -23,11 +24,12 @@ export const POST = api(async (req: Request) => {
     if (!e) throw new HttpError(404, 'Record not found');
     assertCanEdit(e, user);
   }
-  const stored = await storeFile(buf, kind.ext);
+  const inDb = process.env.PHOTO_STORAGE === 'database';
+  const stored = inDb ? { key: 'database', sha256: createHash('sha256').update(buf).digest('hex') } : await storeFile(buf, kind.ext);
   const [row] = await query<{ id: string }>(
-    `INSERT INTO attachments (entry_id, kind, file_name, mime_type, size_bytes, storage_key, sha256, caption, uploaded_by)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
-    [entryId, k, (file.name || `photo.${kind.ext}`).slice(0, 200), kind.mime, buf.length, stored.key, stored.sha256, (form.get('caption') as string)?.slice(0, 300) || null, user.uid],
+    `INSERT INTO attachments (entry_id, kind, file_name, mime_type, size_bytes, storage_key, sha256, caption, uploaded_by, data)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id`,
+    [entryId, k, (file.name || `photo.${kind.ext}`).slice(0, 200), kind.mime, buf.length, stored.key, stored.sha256, (form.get('caption') as string)?.slice(0, 300) || null, user.uid, inDb ? buf : null],
   );
   if (entryId) await audit(null, { entity: 'production_entry', entityId: entryId, action: 'attach_photo', userId: user.uid, newValue: { attachment: row.id, kind: k }, ip: await clientIp() });
   return { id: row.id, kind: k, mime: kind.mime, size: buf.length };

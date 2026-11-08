@@ -14,7 +14,7 @@ async function main() {
   const wb = await loadWorkbook(fs.readFileSync(file));
   console.timeEnd('read workbook');
   const { parts, duplicates } = await parsePartMaster(wb);
-  const admin = (await getPool().query("SELECT id FROM users WHERE role = 'admin' ORDER BY id LIMIT 1")).rows[0]?.id ?? null;
+  const admin = (await (await getPool()).query("SELECT id FROM users WHERE role = 'admin' ORDER BY id LIMIT 1")).rows[0]?.id ?? null;
   await tx(async (c) => {
     const pm = await upsertPartMaster(c, parts, admin);
     console.log(`Cycletime and Bore: ${parts.length} parts (${duplicates} duplicate keys ignored, first match kept like VLOOKUP) → ${pm.inserted} new, ${pm.updated} updated; unknown machine codes: ${pm.unknownMachines.join(', ') || 'none'}`);
@@ -25,6 +25,6 @@ async function main() {
     console.log(`OEE data 1 (${month}): ${r.imported} records imported, ${r.replaced} previous imported records replaced`);
     for (const s of r.skipped.slice(0, 20)) console.log(`  skipped row ${s.row}: ${s.reason}`);
   });
-  await getPool().end();
+  await (await getPool()).end();
 }
 main().catch((e) => { console.error(e); process.exit(1); });

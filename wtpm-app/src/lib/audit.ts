@@ -8,7 +8,7 @@ export async function audit(
   const q = `INSERT INTO audit_log (entity, entity_id, action, reason, old_value, new_value, changed_by, ip_address) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`;
   const p = [a.entity, String(a.entityId), a.action, a.reason ?? null, a.oldValue === undefined ? null : JSON.stringify(a.oldValue), a.newValue === undefined ? null : JSON.stringify(a.newValue), a.userId, a.ip ?? null];
   if (c) await c.query(q, p);
-  else await getPool().query(q, p);
+  else await (await getPool()).query(q, p);
 }
 
 /** Field-level differences between two records, for readable audit history. */
