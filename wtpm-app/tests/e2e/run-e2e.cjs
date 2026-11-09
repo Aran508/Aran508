@@ -38,8 +38,8 @@ const kpi = async (page, label) => (await page.locator(`text=${label}`).first().
 
 (async () => {
   const browser = await chromium.launch();
-  const pc = await login(browser, 'manager', 'Manager@123');
-  const tablet = await login(browser, 'operator', 'Operator@123', devices['iPad Pro 11 landscape']);
+  const pc = await login(browser, 'manager', process.env.DEMO_PW || 'Manager@123');
+  const tablet = await login(browser, 'operator', process.env.OP_PW || 'Operator@123', devices['iPad Pro 11 landscape']);
   let recordId = null;
 
   await step('operator lands on WTPM Quick Entry after login', async () => {
@@ -172,7 +172,7 @@ const kpi = async (page, label) => (await page.locator(`text=${label}`).first().
   });
 
   await step('supervisor verifies the record; operator can no longer edit it', async () => {
-    const sup = await login(browser, 'supervisor', 'Super@123');
+    const sup = await login(browser, 'supervisor', process.env.DEMO_PW || 'Super@123');
     assert.equal((await sup.request.post(`${base}/api/entries/${recordId}/status`, { data: { status: 'verified' } })).status(), 200);
     const d = await (await tablet.request.get(`${base}/api/entries/${recordId}`)).json();
     const e = d.entry;
@@ -195,7 +195,7 @@ const kpi = async (page, label) => (await page.locator(`text=${label}`).first().
   });
 
   await step('portrait tablet has no horizontal scrolling', async () => {
-    const p = await login(browser, 'operator', 'Operator@123', devices['iPad Mini']);
+    const p = await login(browser, 'operator', process.env.OP_PW || 'Operator@123', devices['iPad Mini']);
     await p.goto(`${base}/entry`);
     await p.waitForTimeout(1000);
     assert.equal(await p.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), true);
