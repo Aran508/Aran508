@@ -1,0 +1,163 @@
+[
+ {
+  "sno": 1,
+  "code": "R1",
+  "name": "Robot Welding 1",
+  "line": "LCC",
+  "category": "FM"
+ },
+ {
+  "sno": 2,
+  "code": "R2",
+  "name": "Robot Welding 2",
+  "line": "SCP",
+  "category": "NFM"
+ },
+ {
+  "sno": 3,
+  "code": "r4",
+  "name": "Robot Welding 4",
+  "line": "MCP",
+  "category": "FM"
+ },
+ {
+  "sno": 4,
+  "code": "spm 1",
+  "name": "SPM Welding 1",
+  "line": "SCP",
+  "category": "FM"
+ },
+ {
+  "sno": 5,
+  "code": "spm 2",
+  "name": "SPM Welding 2",
+  "line": "MCP",
+  "category": "NFM"
+ },
+ {
+  "sno": 6,
+  "code": "sp",
+  "name": "Primo 1",
+  "line": "SCP",
+  "category": "NFM"
+ },
+ {
+  "sno": 7,
+  "code": "a2",
+  "name": "Ace 2",
+  "line": "SCP",
+  "category": "FM"
+ },
+ {
+  "sno": 8,
+  "code": "a3",
+  "name": "Ace 3",
+  "line": "SCP",
+  "category": "NFM"
+ },
+ {
+  "sno": 9,
+  "code": "a7",
+  "name": "Ace 7",
+  "line": "SCP",
+  "category": "NFM"
+ },
+ {
+  "sno": 10,
+  "code": "a8",
+  "name": "Ace 8",
+  "line": "LCC",
+  "category": "FM"
+ },
+ {
+  "sno": 11,
+  "code": "vscp",
+  "name": "VSCP Testing",
+  "line": "VSCP",
+  "category": "NFM"
+ },
+ {
+  "sno": 12,
+  "code": "m2",
+  "name": "Mainline 2 Testing",
+  "line": "JCB",
+  "category": "NFM"
+ },
+ {
+  "sno": 13,
+  "code": "sct",
+  "name": "Mainline  1 Testing",
+  "line": "SCP",
+  "category": "FM"
+ },
+ {
+  "sno": 14,
+  "code": "mcp",
+  "name": "MCP Testing",
+  "line": "MCP",
+  "category": "NFM"
+ },
+ {
+  "sno": 15,
+  "code": "slt",
+  "name": "Slewline Testing",
+  "line": "SCP",
+  "category": "FM"
+ },
+ {
+  "sno": 16,
+  "code": "lct",
+  "name": "LCC Testing",
+  "line": "LCC",
+  "category": "NFM"
+ },
+ {
+  "sno": 17,
+  "code": "s1",
+  "name": "Sierra 1",
+  "line": "SCP",
+  "category": "FM"
+ },
+ {
+  "sno": 18,
+  "code": "s2",
+  "name": "Sierra 2",
+  "line": "MCP",
+  "category": "FM"
+ },
+ {
+  "sno": 19,
+  "code": "wid",
+  "name": "Widma",
+  "line": "VSCP",
+  "category": "NFM"
+ },
+ {
+  "sno": 20,
+  "code": "h1",
+  "name": "Hyundai 1",
+  "line": "LCC",
+  "category": "NFM"
+ },
+ {
+  "sno": 21,
+  "code": "h2",
+  "name": "Hyundai 2",
+  "line": "LCC",
+  "category": "NFM"
+ },
+ {
+  "sno": 22,
+  "code": "mca",
+  "name": "MCP Assembly",
+  "line": "MCP",
+  "category": "NFM"
+ },
+ {
+  "sno": 23,
+  "code": "lca",
+  "name": "LCC Assembly",
+  "line": "LCC",
+  "category": "NFM"
+ }
+]

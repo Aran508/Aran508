@@ -1,0 +1,35 @@
+# Company LAN server: docker compose up -d   →  http://<server-ip>:3000
+# First time only:   docker compose exec app npx tsx scripts/seed.ts
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: wtpm
+      POSTGRES_USER: wtpm
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-change-this-db-password}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wtpm"]
+      interval: 5s
+      retries: 10
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgres://wtpm:${DB_PASSWORD:-change-this-db-password}@db:5432/wtpm
+      AUTH_SECRET: ${AUTH_SECRET:?Set AUTH_SECRET in .env (openssl rand -hex 32)}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      SEED_ADMIN_USER: ${SEED_ADMIN_USER:-admin}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-Admin@123}
+    volumes:
+      - appdata:/data
+volumes:
+  pgdata:
+  appdata:

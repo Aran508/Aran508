@@ -1,0 +1,9 @@
+{
+  "name": "WTPM OEE Management",
+  "short_name": "WTPM",
+  "start_url": "/entry",
+  "display": "standalone",
+  "background_color": "#f3f2ef",
+  "theme_color": "#261a66",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}
